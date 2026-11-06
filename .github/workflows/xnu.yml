@@ -113,7 +113,35 @@ jobs:
 
       - name: Kernel build dependencies, stage 1 and 2
         working-directory: kernel
-        run: ./xnu-deps/setup.sh
+        run: |
+          set -o pipefail
+          if ! ./xnu-deps/setup.sh 2>&1 | tee ../setup.log; then
+            # The setup script keeps its detailed output in xnu-deps/*.log.  Republish
+            # the tails as ::error:: annotations: job logs need a token to download,
+            # annotations of a failed check are public.
+            {
+              echo "xnu-deps/setup.sh failed"
+              tail -40 ../setup.log
+              for f in xnu-deps/*.log; do
+                [ -f "$f" ] || continue
+                echo "--- $f"
+                tail -40 "$f"
+              done
+            } | while IFS= read -r line; do
+              printf '::error::%s\n' "${line//'%'/'%25'}"
+            done
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: xnu-deps-logs
+          path: |
+            setup.log
+            kernel/xnu-deps/*.log
+          retention-days: 7
+          if-no-files-found: ignore
 
       - name: Build the kernel (GICv2)
         working-directory: kernel
