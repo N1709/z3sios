@@ -254,7 +254,7 @@ Use the device tree for the exact names. Reading a block whose clock is gated ca
 
 ## Sources
 
-- `reference/dts/dtb.img.0.dts`, `dtbo.img.0.dts` and `dtbo.img.1.dts`: the stock y2s device trees.
+- `reference/dts/dtb.img.0.dts`, `dtbo.img.0.dts` and `dtbo.img.1.dts`: the stock z3s device trees.
 - Samsung's `drivers/clk/samsung/clk-exynos9830.c`, `drivers/pci/controller/dwc/pcie-exynos-host-v0.c`, `drivers/gpu/drm/panel/panel-samsung-s6e3hab.c` and the `sec_ts`, `s2dos05` and `max77705` drivers.
 - Project Silicium's `S5E9830Pkg`: memory map, GPIO banks, HSI2C and UFS.
 - z3s's notes and patches for the same SoC.

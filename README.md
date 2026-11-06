@@ -1,6 +1,6 @@
-# y2sios
+# z3sios
 
-XNU 8796.121.2 and the iOS 16.5 user space on the Samsung Galaxy S20+ 5G (Exynos 990, SM-G986B, codename `y2s`).
+XNU 8796.121.2 and the iOS 16.5 user space on the Samsung Galaxy S20 Ultra 5G (Exynos 990, SM-G988B, codename `z3s`).
 
 This repository is a source snapshot of a working research port. The current image starts from the phone's `recovery` partition, runs Mu-Silicium UEFI and the `xnuloader` EFI application, enters XNU at EL1, mounts an APFS root, and reaches the lock screen. Display, GPU, Metal (CoreAnimation renders through Metal on the Mali), touch, buttons, battery, UFS storage, Wi-Fi, Bluetooth transport, ACPM DVFS with a governor and thermal limits, and idle power-down of all eight cores are implemented. Cellular, camera, audio output, sensors and Apple services are not.
 
@@ -39,7 +39,7 @@ Current as of 27 October 2026.
 
 | | |
 |---|---|
-| Model | SM-G986B, `y2s`, Galaxy S20+ 5G |
+| Model | SM-G988B, `z3s`, Galaxy S20 Ultra 5G |
 | SoC | Samsung Exynos 990, S5E9830 |
 | CPU | 4x Cortex-A55 (`ananke`), 2x Cortex-A76 (`enyo`), 2x Mongoose M5 (`lion`) |
 | GPU | Mali-G77 MP11, Valhall |
@@ -64,7 +64,7 @@ sboot
        Android boot image
          BootShim
            copies the 2 MiB UEFI firmware volume to 0xE8000000
-         Mu-Silicium UEFI, y2sPkg
+         Mu-Silicium UEFI, z3sPkg
            BDS finds no boot option
            calls XnuLoaderMain()
              starts loader.efi from the XNUP payload at 0xE8100000
@@ -81,7 +81,7 @@ The four source layers are:
 
 | Layer | Source | Scope |
 |---|---|---|
-| UEFI platform | `uefi/` | Mu-Silicium `y2sPkg`, loader hook, platform memory map |
+| UEFI platform | `uefi/` | Mu-Silicium `z3sPkg`, loader hook, platform memory map |
 | Loader | `kernel/xnuloader/` | XNUP payload, device tree, boot args, boot menu, USB flashing |
 | Kernel | `kernel/xnu/` | XNU overlay, GICv2, drivers, IOKit services |
 | User space | `userland/` | init, injected libraries, launchd jobs, tests, GPU stack |
@@ -94,7 +94,7 @@ The `recovery` partition is used as the port's disk. The stock partition is 65.8
 |---|---|---|
 | 0 | 2.4 MB | Android boot image: BootShim, UEFI firmware volume, XNUP payload |
 | 16 MiB | 2 MiB | Kernel log, written by the loader on return or panic |
-| 32 MiB | 16 MiB | `mach.y2s`, the XNU kernel |
+| 32 MiB | 16 MiB | `mach.z3s`, the XNU kernel |
 | 48 MiB | 4 MiB | `root.apfs`, the small `/redwood` volume |
 | `super` + 0x184B00000 | 2.32 GiB | `system.apfs`, iOS root in the unused tail of `super` |
 
@@ -103,7 +103,7 @@ The `recovery` partition is used as the port's disk. The stock partition is 65.8
 Two boot-chain constraints are fixed:
 
 - The XNUP payload is placed inside the UEFI firmware volume at offset `0x100000`, physical address `0xE8100000`. The stock boot image header records `image_size` as 2 MiB, so appending data after the firmware volume causes `sboot` to reject the image or drop the tail.
-- `y2sPkg` keeps the ACPI tables from `x1s/AcpiTables.inf`. `BdsDxe` depends on the ACPI table protocol; removing `AcpiTableDxe` prevents BDS from dispatching and produces a blank screen followed by Download Mode. The tables are otherwise inert because `UpdateAcpiTables()` is a null library.
+- `z3sPkg` keeps the ACPI tables from `x1s/AcpiTables.inf`. `BdsDxe` depends on the ACPI table protocol; removing `AcpiTableDxe` prevents BDS from dispatching and produces a blank screen followed by Download Mode. The tables are otherwise inert because `UpdateAcpiTables()` is a null library.
 
 ### Kernel configuration
 
@@ -113,7 +113,7 @@ Two boot-chain constraints are fixed:
 | Darwin version | 22.5.0 |
 | Build configuration | `BCM2837`, used as a generic ARM64 base |
 | Interrupt build flag | `GENERIC_GIC_V2_IRQ`, set by exporting `GIC_V2=1` |
-| Output | `mach.development.bcm2837`, copied to `out/mach.y2s` |
+| Output | `mach.development.bcm2837`, copied to `out/mach.z3s` |
 | Size | About 16.68 MB in a 16.78 MB slot |
 
 `kernel/xnu/` is an overlay, not a complete XNU tree. `apply.sh` clones Apple's source and applies `redwood.patch` plus the files in `files/`. `export.sh` regenerates both from a working tree.
@@ -126,7 +126,7 @@ The Exynos 990 uses a GIC-400 (GICv2). The inherited HackiOS kernel had a GICv3 
 
 `kernel/xnu/files/osfmk/arm64/gic_v2_irq.c` implements GICv2 behind the same exported symbols as the GICv3 driver, so callers are unchanged. A board compiles one of the two drivers.
 
-| GICv3 | GICv2 on y2s |
+| GICv3 | GICv2 on z3s |
 |---|---|
 | CPU interface via `ICC_*_EL1` | CPU interface via MMIO at `GICC`, base + 0x10000 |
 | `ICC_IAR1_EL1` / `ICC_EOIR1_EL1` | `GICC_IAR` / `GICC_EOIR` |
@@ -134,7 +134,7 @@ The Exynos 990 uses a GIC-400 (GICv2). The inherited HackiOS kernel had a GICv3 
 | SPIs via `GICD_IROUTER` | SPIs via `GICD_ITARGETSR` |
 | Per-CPU bank in a redistributor | SGI and PPI bank in the distributor |
 
-The driver reports `gic: v2`; hardware reports `IIDR 0x0202143b`. `y2s.sh kernel` checks for the `gic: v2` string before packing, because a GICv3 kernel produces a silent boot failure.
+The driver reports `gic: v2`; hardware reports `IIDR 0x0202143b`. `z3s.sh kernel` checks for the `gic: v2` string before packing, because a GICv3 kernel produces a silent boot failure.
 
 QEMU's GICv2 model is insufficient for validating the driver: it has no security extensions, reports `GICD_TYPER=0x68`, and acknowledges interrupts as `1022`. Validation is performed on the phone.
 
@@ -424,9 +424,9 @@ The GPU had been pinned at 702 MHz and the SoC idled at 81-82 C. With the govern
 
 The loader presents a boot menu drawn with XNU's 8x16 console font: **Boot iOS**, **Log access (USB)**, **Download Mode**, **Reboot** and **Power off**. It appears at power-on and after iOS returns, and boots iOS automatically after 3 seconds if no key is pressed.
 
-Log access starts a USB device stack on `EFI_USBFN_IO_PROTOCOL` and a fastboot server. `y2s.sh ulog`, `uflash`, `uboot` and `hflash` use it. `uflash` writes the image in two pieces around the 16 MiB log region so the previous log survives. The USB implementation handles `CLEAR_FEATURE(ENDPOINT_HALT)` by resetting the DWC3 data sequence, which is required for repeated sessions with macOS `fastboot`.
+Log access starts a USB device stack on `EFI_USBFN_IO_PROTOCOL` and a fastboot server. `z3s.sh ulog`, `uflash`, `uboot` and `hflash` use it. `uflash` writes the image in two pieces around the 16 MiB log region so the previous log survives. The USB implementation handles `CLEAR_FEATURE(ENDPOINT_HALT)` by resetting the DWC3 data sequence, which is required for repeated sessions with macOS `fastboot`.
 
-While iOS runs, `com.redwood.logd` serves the kernel log ring and message buffer over HTTP on port 8080, advertised by Bonjour as `HackiOS`. `y2s.sh wlog` and `wtail` use it.
+While iOS runs, `com.redwood.logd` serves the kernel log ring and message buffer over HTTP on port 8080, advertised by Bonjour as `HackiOS`. `z3s.sh wlog` and `wtail` use it.
 
 ### mali2metal: the evidence loop
 
@@ -434,7 +434,7 @@ Metal and the drivers around it are developed in a loop where every change is me
 
 - **The m2m channel.** `bsd/dev/redwood_m2m.c` keeps a ring of records, `<seq> <seconds> <severity> <CATEGORY> <process>[<pid>] <message>`. User space writes to `/dev/m2m` (`userland/src/m2m.h`); the kernel adds GPU faults, client crashes and suspensions, CPU idle and wake reports, DVFS and thermal steps, touch and battery state. `sysctl kern.m2m_log` reads it.
 - **rwlogd** serves `GET /m2m`, `GET /tour` (runs `userland/m2m.tour`, a fixed set of gestures through `rwtouch`), `GET /notify?name=com.redwood.metal.*` and `GET /menu?to=1|3` (hand the phone back to Log access or Download Mode), besides the logs.
-- **`./y2s.sh loop LABEL`** builds the payload from `kernel/m2m.cmdline`, asks the running phone for Log access, flashes over USB, restarts, waits for iOS on Wi-Fi, runs the tour and saves the channel. It then reports the run against the previous one (`kernel/tools/m2m.py`). `M2M_SET="key=value ..."` varies the command line for one run; `M2M_PROF=1` adds the window server's sampling profiler.
+- **`./z3s.sh loop LABEL`** builds the payload from `kernel/m2m.cmdline`, asks the running phone for Log access, flashes over USB, restarts, waits for iOS on Wi-Fi, runs the tour and saves the channel. It then reports the run against the previous one (`kernel/tools/m2m.py`). `M2M_SET="key=value ..."` varies the command line for one run; `M2M_PROF=1` adds the window server's sampling profiler.
 - **Analysis tools.**
   - `tools/frame_split.py`: per-frame timing from `touch_lat=1`.
   - `tools/prof-symbolize.py`, `tools/prof-stacks.py`: profiles. The profiler runs in any Metal process through `com.redwood.metal.prof.<process>`.
@@ -475,7 +475,7 @@ The repository is a snapshot and is applied over the upstream HackiOS trees. It 
 - Theos with `iPhoneOS16.5.sdk` at `~/theos/sdks/iPhoneOS16.5.sdk`.
 - Python 3, `clang`, `lld`.
 - arm64 Linux host or VM for Mu-Silicium; Mu-Basetools has no macOS host support.
-- Unlocked SM-G986B, `adb`, `fastboot`, Heimdall.
+- Unlocked SM-G988B, `adb`, `fastboot`, Heimdall.
 - iOS 16.5 IPSW, downloaded by `ios165/fetch.sh` from Apple's CDN.
 - The phone's own firmware blobs, extracted from the stock AP tar. See [reference/firmware-notes.md](reference/firmware-notes.md).
 
@@ -486,14 +486,14 @@ git clone https://github.com/oosexgang/hackios-xnu-kernel.git
 cd hackios-xnu-kernel
 common/setup.sh
 
-SNAP=/path/to/y2sios
+SNAP=/path/to/z3sios
 rsync -a "$SNAP/kernel/xnu/" xnu/
 rsync -a "$SNAP/kernel/xnuloader/" xnuloader/
 rsync -a "$SNAP/kernel/common/" common/
 rsync -a "$SNAP/kernel/tools/" tools/
 rsync -a "$SNAP/userland/src/" userland/src/
-cp "$SNAP/kernel/y2s.sh" "$SNAP/kernel/m2m.cmdline" .
-cp "$SNAP/userland/build-gpu-y2s.sh" "$SNAP/userland/build.sh" \
+cp "$SNAP/kernel/z3s.sh" "$SNAP/kernel/m2m.cmdline" .
+cp "$SNAP/userland/build-gpu-z3s.sh" "$SNAP/userland/build.sh" \
    "$SNAP/userland/mkjobs.py" "$SNAP/userland/mkeagl.py" userland/
 cp "$SNAP/userland"/rc.* userland/
 cp "$SNAP/userland"/*.plist userland/
@@ -506,49 +506,49 @@ export GIC_V2=1
 ./xnu-build.sh -j"$(sysctl -n hw.ncpu)" -k
 ```
 
-`./y2s.sh kernel` wraps the build, checks for `gic: v2`, copies the kernel to `out/mach.y2s`, and exports the overlay. The build exits non-zero because of XNU's symbolset export check; the kernel is linked before that step.
+`./z3s.sh kernel` wraps the build, checks for `gic: v2`, copies the kernel to `out/mach.z3s`, and exports the overlay. The build exits non-zero because of XNU's symbolset export check; the kernel is linked before that step.
 
 ### UEFI
 
 ```sh
 git clone --recursive https://github.com/Project-Silicium/Mu-Silicium.git
 cd Mu-Silicium
-git apply /path/to/y2sios/uefi/y2s.patch
+git apply /path/to/z3sios/uefi/z3s.patch
 
-cp -a /path/to/y2sios/uefi/Platforms/Samsung/y2sPkg Platforms/Samsung/
-cp /path/to/y2sios/uefi/Resources/Configs/y2s.toml Resources/Configs/
-cp /path/to/y2sios/uefi/Resources/DTBs/y2s.dtb Resources/DTBs/
-cp /path/to/y2sios/uefi/BootManagerLib/* \
+cp -a /path/to/z3sios/uefi/Platforms/Samsung/z3sPkg Platforms/Samsung/
+cp /path/to/z3sios/uefi/Resources/Configs/z3s.toml Resources/Configs/
+cp /path/to/z3sios/uefi/Resources/DTBs/z3s.dtb Resources/DTBs/
+cp /path/to/z3sios/uefi/BootManagerLib/* \
    Silicon/Silicium/SiliciumPkg/Library/BootManagerLib/
 ```
 
 Build in the Linux VM:
 
 ```sh
-python3 build_uefi.py -d y2s
+python3 build_uefi.py -d z3s
 ```
 
-Output: `Build/y2sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd`, 2 MiB.
+Output: `Build/z3sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd`, 2 MiB.
 
 ### Userland
 
 ```sh
 cd userland
 ../ios165/fetch.sh
-QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-y2s.sh
+QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-z3s.sh
 ```
 
-`RC=rc.launchd.metal` starts the Metal plug-in setup (`metal_props`) before the window server; without it CoreAnimation falls back to OpenGL ES. `RC_JOBS=rc.jobs.y2s` builds the older scripted demonstration instead of leaving the phone to the user.
+`RC=rc.launchd.metal` starts the Metal plug-in setup (`metal_props`) before the window server; without it CoreAnimation falls back to OpenGL ES. `RC_JOBS=rc.jobs.z3s` builds the older scripted demonstration instead of leaving the phone to the user.
 
-`build-gpu-y2s.sh` builds Mesa with panfrost, the EAGL library, the Metal libraries and tests, then calls `build.sh` with `GL=1`. `build.sh` produces `root.apfs` and the 2.3 GB `system.apfs`. Apple files and the system image are not committed.
+`build-gpu-z3s.sh` builds Mesa with panfrost, the EAGL library, the Metal libraries and tests, then calls `build.sh` with `GL=1`. `build.sh` produces `root.apfs` and the 2.3 GB `system.apfs`. Apple files and the system image are not committed.
 
 ### Build and pack
 
 From the kernel tree:
 
 ```sh
-./y2s.sh payload "$(cat m2m.cmdline)"
-./y2s.sh pack
+./z3s.sh payload "$(cat m2m.cmdline)"
+./z3s.sh pack
 ```
 
 `m2m.cmdline` is the standard command line:
@@ -560,9 +560,9 @@ wifi_pcie_wait=3 ufs=2 ufs_native=1 ufs_root=super:184b00000:948c0000 ufs_write=
 snd=1 dvfs_cl2=2304000 jit_flush=1 cpuidle=1 autounlock=0
 ```
 
-`./y2s.sh loop LABEL` does payload, pack, flash, boot, tour and report in one step when iOS is already running on Wi-Fi.
+`./z3s.sh loop LABEL` does payload, pack, flash, boot, tour and report in one step when iOS is already running on Wi-Fi.
 
-`payload` builds the loader and XNUP container and records the size of `root.apfs`. `pack` writes `out/y2s-recovery.img` as:
+`payload` builds the loader and XNUP container and records the size of `root.apfs`. `pack` writes `out/z3s-recovery.img` as:
 
 ```
 embed @ 0 + kernel @ 32 MiB + root.apfs @ 48 MiB
@@ -574,10 +574,10 @@ Run `payload` again whenever `root.apfs` changes size. The loader reads the reco
 
 | Path | Command |
 |---|---|
-| From Android | `./y2s.sh flash` |
-| From the loader menu | `./y2s.sh uflash` |
-| From Download Mode | `./y2s.sh hflash` |
-| Install the boot image into `boot` | `./y2s.sh standalone` |
+| From Android | `./z3s.sh flash` |
+| From the loader menu | `./z3s.sh uflash` |
+| From Download Mode | `./z3s.sh hflash` |
+| Install the boot image into `boot` | `./z3s.sh standalone` |
 
 `flash` uses `adb root`, writes the image to `recovery`, compares the md5 by reading the partition back, and reboots into it. `uflash` writes over USB in two pieces around the log region. `hflash` uses Heimdall.
 
@@ -587,7 +587,7 @@ Run `payload` again whenever `root.apfs` changes size. The loader reads the reco
 - Download Mode: Volume Down and Power for about 6 seconds, then Volume Up.
 - `adb reboot recovery` sets the boot-recovery flag in `misc`. The UEFI does not clear it, so subsequent reboots return to the UEFI until the stock `misc` file is restored.
 - Never zero the whole `misc` partition. Restore the stock file.
-- After `standalone`, restore Android's boot image with `heimdall flash --BOOT backup-y2s/boot.img`.
+- After `standalone`, restore Android's boot image with `heimdall flash --BOOT backup-z3s/boot.img`.
 - Do not write `sdb`, `sdc`, `efs`, `sec_efs`, `param`, `up_param`, `vbmeta*`, `keydata`, `keyrefuge`, `steady` or `persistent`.
 - `by-name/sda` is the whole disk. Scripts over `by-name/*` must exclude `sda` to `sde`.
 - Keep partition backups and a stock AP tar.
@@ -599,23 +599,23 @@ The loader's `oem write` accepts `boot`, `recovery`, `super` above `0x184B00000`
 The kernel log is the primary instrument. It is available through three paths:
 
 1. **Loader return.** Volume Down plus Power for 3 seconds, or five fingers for 1.5 seconds, returns to the loader, which writes the log to `recovery`+16 MiB and displays it.
-2. **USB.** Select Log access in the menu and run `./y2s.sh ulog`.
-3. **Wi-Fi.** While iOS runs, `./y2s.sh wlog` fetches the log ring and message buffer; `wtail` follows it.
+2. **USB.** Select Log access in the menu and run `./z3s.sh ulog`.
+3. **Wi-Fi.** While iOS runs, `./z3s.sh wlog` fetches the log ring and message buffer; `wtail` follows it.
 
-`y2s.sh log` pulls the saved log from the recovery partition over adb and strips NUL bytes. The loader's log can contain NUL data; earlier tooling stopped at the first NUL and truncated the result.
+`z3s.sh log` pulls the saved log from the recovery partition over adb and strips NUL bytes. The loader's log can contain NUL data; earlier tooling stopped at the first NUL and truncated the result.
 
 Useful hardware techniques:
 
 - **Write-back test.** Write a value to a register and read it back. A value that does not stick indicates a gated clock or unpowered block.
 - **Ghost I2C address.** Access an unassigned address. An acknowledgement indicates a stuck-low data line, not a working bus.
 - **Deliberate panic.** A panic message is the last entry in the log and survives to storage. Include register values in the message.
-- **The m2m channel and the loop.** See [mali2metal](#mali2metal-the-evidence-loop). `./y2s.sh m2m report RUN` compares two runs record by record.
+- **The m2m channel and the loop.** See [mali2metal](#mali2metal-the-evidence-loop). `./z3s.sh m2m report RUN` compares two runs record by record.
 - **Instrument checks.** [docs/history/checks.md](docs/history/checks.md) documents measurement failures from this port, including skipped cases counted as successes and stale build artefacts.
 
 ## Repository layout
 
 ```
-y2sios/
+z3sios/
   README.md
   LICENSE
   NOTICE.md
@@ -629,25 +629,25 @@ y2sios/
   kernel/
     xnu/                     redwood.patch, files/, apply.sh, export.sh
     xnuloader/               EFI loader source
-    common/                  build profiles including y2s.conf
+    common/                  build profiles including z3s.conf
     tools/                   Mesa, brcmfmac, APFS, HFS, m2m, profiler and shared-cache tools
-    y2s.sh                   build, pack, flash, log and loop commands
+    z3s.sh                   build, pack, flash, log and loop commands
     m2m.cmdline              the standard boot command line
   userland/
     src/                     iOS-side programs, injected libraries, Metal driver
     m2m.tour                 the standard tour of gestures
     build.sh                 root.apfs and system.apfs
-    build-gpu-y2s.sh         Mesa, EAGL and Metal build on macOS
+    build-gpu-z3s.sh         Mesa, EAGL and Metal build on macOS
   uefi/
-    Platforms/Samsung/y2sPkg Mu-Silicium platform package
+    Platforms/Samsung/z3sPkg Mu-Silicium platform package
     BootManagerLib/          loader hook and modified BDS boot manager
-    y2s.patch                changes to Mu-Silicium
+    z3s.patch                changes to Mu-Silicium
   reference/
     dts/                     decompiled stock device trees
     firmware-notes.md        vendor blob extraction
 ```
 
-Not included: `xnu-src`, `ios165`, `prebuilt`, `fw-stock`, `samloader`, `backup-y2s`, firmware blobs, the system image and build output.
+Not included: `xnu-src`, `ios165`, `prebuilt`, `fw-stock`, `samloader`, `backup-z3s`, firmware blobs, the system image and build output.
 
 ## Documentation
 

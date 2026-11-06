@@ -33,7 +33,7 @@
  * recent part (a ring); room is left for what is appended on the way out (the kernel message
  * buffer, a panic's text). loader_log_linearize() puts the pieces in order before returning.
  */
-#define LOADER_LOG_SIZE (6656 * 1024)        /* y2s: an iOS boot with all its jobs says megabytes; the loader keeps 8 MB */
+#define LOADER_LOG_SIZE (6656 * 1024)        /* z3s: an iOS boot with all its jobs says megabytes; the loader keeps 8 MB */
 #define LOADER_LOG_HEAD (1024 * 1024)
 #define LOADER_LOG_RING (5120 * 1024)
 
@@ -406,7 +406,7 @@ loader_return(void)
 #endif
 	redwood_ufs_quiesce();          /* this kernel's requests to the storage done, UEFI's list as it was, for the log */
 	redwood_adreno_quiesce();       /* the GPU block, if it was started, has tables in memory that is about to be reused */
-	redwood_mali_quiesce();         /* the S20+'s Mali powered off: its tables are in that memory too, and it kept the menu warm */
+	redwood_mali_quiesce();         /* the S20 Ultra's Mali powered off: its tables are in that memory too, and it kept the menu warm */
 	redwood_wifi_quiesce();         /* the Wi-Fi DSP, if it still runs (a panic), is not left to itself */
 	redwood_fb_quiesce();           /* the panel back on the firmware's framebuffer: the loader's menu shows */
 	redwood_adsp_quiesce();         /* nor the audio DSP */
@@ -414,7 +414,7 @@ loader_return(void)
 	redwood_haptic_quiesce();       /* the vibration motor's chip back into reset, if it was let out */
 	redwood_torch_quiesce();        /* the flashlight off, if it was lit */
 	redwood_camera_quiesce();       /* the camera powered down, if it was powered up */
-	redwood_exynos_sound_quiesce(); /* the S20+'s amplifiers into reset and the audio DMA stopped: its ring is reused memory */
+	redwood_exynos_sound_quiesce(); /* the S20 Ultra's amplifiers into reset and the audio DMA stopped: its ring is reused memory */
 	redwood_mic_quiesce();          /* (what the microphones' path did, said again: it happens in the log's middle) */
 	/*
 	 * A panic's text is first collected in the panic buffer and only later

@@ -287,7 +287,7 @@ typedef struct efi_simple_text_input {
 #define EFI_SCAN_LEFT   0x04
 #define EFI_SCAN_ESC    0x17
 
-/* USB Function I/O (UEFI 2.5, MdePkg/Include/Protocol/UsbFunctionIo.h): Silicium's UsbfnDwc3Dxe on y2s */
+/* USB Function I/O (UEFI 2.5, MdePkg/Include/Protocol/UsbFunctionIo.h): Silicium's UsbfnDwc3Dxe on z3s */
 #define EFI_USBFN_IO_GUID { 0x32d2963a, 0xfe5d, 0x4f30, { 0xb6, 0x33, 0x6e, 0x5d, 0xc5, 0x58, 0x03, 0xcc } }
 
 enum {

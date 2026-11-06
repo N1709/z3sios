@@ -24,7 +24,7 @@ if ! skip kernel; then
 		[ -x xnu-deps/host/bin/ld64 ] || xnu-deps/setup.sh
 		# Wi-Fi radio driver (phones with a WCN6750): fetched and built once
 		[ "$WIFI_ATH11K" = 1 ] && [ ! -f xnu-deps/build/ath11k/out/ath11k.o ] && { tools/mk-ath11k.sh && tools/mk-wlfw.sh; }
-		# GICv2 board (y2s): tell the kernel build to use osfmk/arm64/gic_v2_irq.c
+		# GICv2 board (z3s): tell the kernel build to use osfmk/arm64/gic_v2_irq.c
 		export GIC_V2
 		# the export check fails after the kernel is linked, on purpose (xnu/README.md): judge by the file
 		touch out/.kernel-start

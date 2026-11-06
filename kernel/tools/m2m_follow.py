@@ -2,7 +2,7 @@
 """Follow the phone's mali2metal channel live and append every new record to a file, across reboots: what
 is recorded before a hard reset (which leaves the loader no log) is kept on this side.
 
-usage: tools/m2m_follow.py OUT [--host HOST] [--seconds 900]   (HOST: $Y2S_IP, else HackiOS.local)
+usage: tools/m2m_follow.py OUT [--host HOST] [--seconds 900]   (HOST: $Z3S_IP, else HackiOS.local)
 """
 import argparse
 import os
@@ -13,7 +13,7 @@ import urllib.request
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('out')
-    ap.add_argument('--host', default=os.environ.get('Y2S_IP', 'HackiOS.local'))
+    ap.add_argument('--host', default=os.environ.get('Z3S_IP', 'HackiOS.local'))
     ap.add_argument('--seconds', type=int, default=900)
     a = ap.parse_args()
     end = time.time() + a.seconds

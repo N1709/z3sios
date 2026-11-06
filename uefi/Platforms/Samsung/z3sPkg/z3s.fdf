@@ -97,7 +97,7 @@ READ_LOCK_STATUS   = TRUE
   # Device Tree
   #INF EmbeddedPkg/Drivers/DtPlatformDxe/DtPlatformDxe.inf
   #FILE FREEFORM = 25462CDA-221F-47DF-AC1D-259CFAA4E326 {
-  #  SECTION RAW = y2sPkg/FdtBlob/s5e9830-samsung-y2s.dtb
+  #  SECTION RAW = z3sPkg/FdtBlob/s5e9830-samsung-z3s.dtb
   #  SECTION UI = "DeviceTreeBlob"
   #}
 

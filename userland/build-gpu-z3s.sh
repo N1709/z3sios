@@ -1,5 +1,5 @@
 #!/bin/bash
-# The GPU pieces of the small image for the Galaxy S20+ (y2s, Mali-G77), built on macOS, where
+# The GPU pieces of the small image for the Galaxy S20 Ultra (z3s, Mali-G77), built on macOS, where
 # build.sh does not compile (it wants the Linux toolchain's ld64 and falls back to prebuilt/userland):
 #
 #   obj/libOSMesa.8.dylib      Mesa with panfrost (tools/mk-mesa.sh, DRIVERS=softpipe,panfrost)
@@ -13,8 +13,8 @@
 #                              the ones that were there are kept as *.orig
 #
 # then build.sh with GL=1 and whatever else is given in the environment (REST=1, RC_JOBS=...).
-#   userland/build-gpu-y2s.sh                  REST=1 GL=1
-#   RC_JOBS=rc.jobs.mali userland/build-gpu-y2s.sh
+#   userland/build-gpu-z3s.sh                  REST=1 GL=1
+#   RC_JOBS=rc.jobs.mali userland/build-gpu-z3s.sh
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT=$(cd .. && pwd)
@@ -30,7 +30,7 @@ fi
 # hash): its sources, the libdrm stand-in compiled into it, the patches. A driver built against a newer rwa_*
 # contract than the library beside it reads one field as another, and a stale shim measures nothing
 if [ "$(cat $M/built-from-air 2>/dev/null)" != "$(cat ../tools/mesa/air/* ../tools/mesa/redwood-drm/* ../tools/mesa/*.patch | sha256sum)" ]; then
-	echo "build-gpu-y2s.sh: libredwoodair.dylib is older than what it is built from"
+	echo "build-gpu-z3s.sh: libredwoodair.dylib is older than what it is built from"
 	AIR=1 DRIVERS=softpipe,panfrost ../tools/mk-mesa.sh
 fi
 cp $M/libOSMesa.8.dylib obj/

@@ -24,10 +24,10 @@ from edk2toollib.utility_functions import RunCmd
 #                                Common Configuration                                     #
 # ####################################################################################### #
 class CommonPlatform ():
-    PackagesSupported = ("y2sPkg")
+    PackagesSupported = ("z3sPkg")
     ArchSupported = ("AARCH64")
     TargetsSupported = ("DEBUG", "RELEASE")
-    Scopes = ('y2s', 'gcc_aarch64_linux', 'edk2-build')
+    Scopes = ('z3s', 'gcc_aarch64_linux', 'edk2-build')
     WorkspaceRoot = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
     PackagesPath = (
         "Platforms/Samsung",
@@ -98,10 +98,10 @@ class SettingsManager (UpdateSettingsManager, SetupSettingsManager, PrEvalSettin
         return build_these_packages
 
     def GetPlatformDscAndConfig (self) -> tuple:
-        return ("y2sPkg/y2s.dsc", {})
+        return ("z3sPkg/z3s.dsc", {})
 
     def GetName (self):
-        return "y2s"
+        return "z3s"
 
     def GetPackagesPath (self):
         return CommonPlatform.PackagesPath
@@ -135,7 +135,7 @@ class PlatformBuilder (UefiBuilder, BuildSettingsManager):
         return CommonPlatform.Scopes
 
     def GetName (self):
-        return "y2sPkg"
+        return "z3sPkg"
 
     def GetLoggingLevel (self, loggerType):
         return logging.INFO
@@ -144,8 +144,8 @@ class PlatformBuilder (UefiBuilder, BuildSettingsManager):
     def SetPlatformEnv (self):
         logging.debug ("PlatformBuilder SetPlatformEnv")
 
-        self.env.SetValue ("PRODUCT_NAME", "y2s", "Platform Hardcoded")
-        self.env.SetValue ("ACTIVE_PLATFORM", "y2sPkg/y2s.dsc", "Platform Hardcoded")
+        self.env.SetValue ("PRODUCT_NAME", "z3s", "Platform Hardcoded")
+        self.env.SetValue ("ACTIVE_PLATFORM", "z3sPkg/z3s.dsc", "Platform Hardcoded")
         self.env.SetValue ("TARGET_ARCH", "AARCH64", "Platform Hardcoded")
         self.env.SetValue ("TOOL_CHAIN_TAG", "CLANGPDB", "set default to clangpdb")
         self.env.SetValue ("EMPTY_DRIVE", "FALSE", "Default to false")

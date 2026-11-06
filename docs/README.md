@@ -5,7 +5,7 @@ The main technical account is the [README](../README.md). These documents go dee
 ## Start here
 
 - [architecture.md](architecture.md): the layers, the boot flow, the memory map and how a driver is added.
-- [hardware.md](hardware.md): addresses, pins, buses and interrupts for the Exynos 990 S20+.
+- [hardware.md](hardware.md): addresses, pins, buses and interrupts for the Exynos 990 S20 Ultra.
 - [building.md](building.md): a full build from upstream sources, including the UEFI in a Linux VM.
 - [history/](history/): the original handover and port log, kept as written.
 - [plans/](plans/): the working plans for display, GPU, wireless, audio and standalone operation, and [plans/10-mali2metal.md](plans/10-mali2metal.md), the run log of the evidence loop.

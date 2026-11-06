@@ -1,7 +1,7 @@
 /*
- * The touchscreen of the Galaxy S20+ (y2s, Exynos 990): a Samsung System LSI
+ * The touchscreen of the Galaxy S20 Ultra (z3s, Exynos 990): a Samsung System LSI
  * touch controller (S6SY79A, Samsung's "sec_ts" driver, firmware
- * "tsp_sec/y79a_y2.bin") at I2C address 0x48 on the pins of HSI2C_15.
+ * "tsp_sec/y79a_z3.bin") at I2C address 0x48 on the pins of HSI2C_15.
  *
  * It is NOT an STMicroelectronics FingerTipS part: the stock kernel runs
  * drivers/input/touchscreen/sec_ts/y79a (Samsung's open-source Exynos 990

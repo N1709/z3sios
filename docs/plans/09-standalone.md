@@ -1,6 +1,6 @@
 # 09 — iOS as the only OS: boot menu, flashing and logs without Android, iOS on the flash
 
-Goal (25 October): the S20+ boots straight into our loader; a menu offers **Boot iOS**, **Log access**,
+Goal (25 October): the S20 Ultra boots straight into our loader; a menu offers **Boot iOS**, **Log access**,
 **Download Mode**; kernels and images are flashed and logs pulled **without Android**; then iOS lives on the
 phone's 122 GB UFS instead of in RAM. Samsung's own Download Mode (S-Boot) is never touched and always stays
 reachable (Vol-Down + Power, then Vol-Up; or from the menu).
@@ -10,8 +10,8 @@ reachable (Vol-Down + Power, then Vol-Up; or from the menu).
 | Need | Already there | Where |
 |---|---|---|
 | Read/write the UFS | UEFI `UfsDxe` (BlockIo); the loader reads `recovery`/`super` and writes its log with it | `Mu-Silicium/Silicon/Samsung/SamsungPkg/Drivers/UfsDxe`, `xnuloader/loader.c` |
-| USB device | UEFI `UsbfnDwc3Dxe` = standard `EFI_USBFN_IO_PROTOCOL` (DWC3, ported from Samsung's 9830 kernel) | `SamsungPkg/Drivers/UsbfnDwc3Dxe`, in y2s.fdf |
-| Keys | UEFI `KeypadDxe`: Vol-Up = SCAN_UP, Vol-Down = SCAN_DOWN, Power = Enter | `y2sPkg/Library/KeypadDeviceLib` |
+| USB device | UEFI `UsbfnDwc3Dxe` = standard `EFI_USBFN_IO_PROTOCOL` (DWC3, ported from Samsung's 9830 kernel) | `SamsungPkg/Drivers/UsbfnDwc3Dxe`, in z3s.fdf |
+| Keys | UEFI `KeypadDxe`: Vol-Up = SCAN_UP, Vol-Down = SCAN_DOWN, Power = Enter | `z3sPkg/Library/KeypadDeviceLib` |
 | A fastboot server | the loader's `fb_command()` (download, upload, log, reboot) — over Qualcomm's USB protocol only | `loader.c` |
 | Reboot to Download Mode | Samsung: PMU INFORM2[23:16] = 0x4E, INFORM3 = 0x12345601, PMU SWRESET | `drivers/samsung/sec_reboot.c`, `exynos-reboot.c` (PMU 0x15860000, mapped in UEFI) |
 | Flashing from Download Mode | heimdall flashes any partition (MISC already done this way) | `heimdall-arm64` |
@@ -26,18 +26,18 @@ root.apfs @48 MB) · `super` 9000 MB @404 MB (system.apfs at +0x184B00000) · `p
 ## Phases
 
 - **P0 — backups (done 25 October).** Every partition but super/userdata/prism/cache, the four boot LUNs and
-  every GPT head: `backup-y2s/` (39 files, MD5SUMS, verified against the phone).
+  every GPT head: `backup-z3s/` (39 files, MD5SUMS, verified against the phone).
 - **P1 — the boot menu (loader).** Drawn on the panel with XNU's 8x16 console font scaled up; Vol-Up/Down move,
   Power selects; **Boot iOS** after 3 s untouched. Entries: Boot iOS · Log access (USB) · Download Mode ·
   Reboot · Power off. Shown at power-on and again when iOS returns (instead of "holding").
 - **P2 — Log access over USB.** The fastboot server on `EFI_USBFN_IO_PROTOCOL`; `oem lastlog` stages the
   last run's log from `recovery`+16 MB; `oem write <part> <hexoff>` writes what was downloaded (whitelisted:
-  boot, recovery, super ≥ 0x184B00000, userdata) and reads it back. Host: `y2s.sh ulog`, `uflash`, `uboot`
+  boot, recovery, super ≥ 0x184B00000, userdata) and reads it back. Host: `z3s.sh ulog`, `uflash`, `uboot`
   (stock `fastboot`, VID 0x18d1).
 - **P3 — Android off the boot path.** The boot image (BootShim + UEFI + payload, 2.4 MB) into `boot`: power-on
-  goes to the menu; `recovery` stays the disk. Android is back with `heimdall flash --BOOT backup-y2s/boot.img`.
+  goes to the menu; `recovery` stays the disk. Android is back with `heimdall flash --BOOT backup-z3s/boot.img`.
   Gate: P1 + P2 work on the phone.
-- **P4 — logs over Wi-Fi while iOS runs**: a small daemon serving the live kernel log (HTTP), `y2s.sh wlog`.
+- **P4 — logs over Wi-Fi while iOS runs**: a small daemon serving the live kernel log (HTTP), `z3s.sh wlog`.
 - **P5 — iOS from the flash.** An Exynos UFS path in XNU (the `redwood_ufshc.c` design: borrow UEFI's
   initialised UFSHCI at 0x13100000, own transfer list; Exynos quirks from Samsung's `ufs-exynos.c`), the iOS
   volume in `userdata` (`oem write`), root from flash (init's `root_apfs=` mode): 2.3 GB of RAM back, the whole
@@ -52,19 +52,19 @@ root.apfs @48 MB) · `super` 9000 MB @404 MB (system.apfs at +0x184B00000) · `p
 
 ## Built 25 October (run S1, flashed to `recovery` over adb; Android still on `boot`)
 
-- `xnuloader`: `y2s_menu_loop()` (efi_main on y2s): HackiOS menu drawn with XNU's 8x16 font (`menu_font.h`,
+- `xnuloader`: `z3s_menu_loop()` (efi_main on z3s): HackiOS menu drawn with XNU's 8x16 font (`menu_font.h`,
   generated from `osfmk/console/iso_font.c`), keys from `ST->con_in`; Boot iOS after 3 s untouched at power-on,
   waits after a run. Download Mode = PMU INFORM2/INFORM3 + SWRESET; Power off = EfiResetShutdown, then PS_HOLD.
 - USB: `EFI_USBFN_IO_PROTOCOL` client (`ufn_*`: descriptors on ep0, bulk ep1 512) under the existing fastboot
   server; `stage_buf` 96 MB; new commands `oem lastlog`, `oem write PART HEXOFF` (recovery, boot, super from
   0x184B00000; read back), `oem boot`, `oem download-mode`.
 - Kernel: `redwood_fb_quiesce()` from `loader_return()`: the panel's window back on S-Boot's channel.
-- Host: `y2s.sh ulog | uflash | uboot | hflash | standalone`.
+- Host: `z3s.sh ulog | uflash | uboot | hflash | standalone`.
 
 ## Run S1/S2 results (25 October)
 
 - Menu drawn, keys work, Log access enumerates on the Mac (`fastboot devices`: xnuloader). **Download Mode from
-  the menu works.** `y2s.sh hflash` (heimdall --RECOVERY from Download Mode) works and reads back identical.
+  the menu works.** `z3s.sh hflash` (heimdall --RECOVERY from Download Mode) works and reads back identical.
 - USB bug: only the first fastboot session answered. macOS's fastboot clears both bulk pipes at every open
   (CLEAR_FEATURE ENDPOINT_HALT): the host's data toggle goes to DATA0, the device's did not. Now forwarded to the
   driver (DWC3 CLEARSTALL resets the sequence); sends time out after 5 s. Then: repeated sessions fine,
@@ -76,12 +76,12 @@ root.apfs @48 MB) · `super` 9000 MB @404 MB (system.apfs at +0x184B00000) · `p
 
 - Return from iOS (Vol-Down + Power 3 s) shows the menu ("iOS returned: its log is saved"): `redwood_fb_quiesce`
   works. `ulog` after a run: 1.7 MB of log over USB.
-- **P3:** `y2s.sh standalone` wrote the boot image (2.4 MB, ANDROID! header: BootShim + UEFI + payload) into `boot`,
+- **P3:** `z3s.sh standalone` wrote the boot image (2.4 MB, ANDROID! header: BootShim + UEFI + payload) into `boot`,
   read back. Proof: `fastboot oem download-mode` → heimdall writes stock `misc` (no recovery flag) → plain reboot →
   the loader answers on USB, no adb. **Power-on now goes to the HackiOS menu; Android no longer boots.**
-  Undo: Download Mode, `heimdall flash --BOOT backup-y2s/boot.img`.
-- The loop without Android: menu → Log access → `./y2s.sh uflash` (recovery, and boot too: out/.standalone) /
-  `ulog` / `uboot`; or Download Mode (menu, or `fastboot oem download-mode`) → `./y2s.sh hflash`.
+  Undo: Download Mode, `heimdall flash --BOOT backup-z3s/boot.img`.
+- The loop without Android: menu → Log access → `./z3s.sh uflash` (recovery, and boot too: out/.standalone) /
+  `ulog` / `uboot`; or Download Mode (menu, or `fastboot oem download-mode`) → `./z3s.sh hflash`.
 
 ## P4 + P5a built (25 October, run S3)
 
@@ -90,7 +90,7 @@ while iOS runs: `sysctl kern.redwood_log` (root) and `kern.redwood_log_total` (c
 in `bsd/dev/redwood_logd.c` over `loader_log_snapshot()` (`osfmk/arm64/loader_return.c`). The launchd job
 `com.redwood.logd` runs `userland/src/rwlogd.c`: HTTP on port 8080 (`/log`, `/tail?from=N` with an
 `X-Total` header), Bonjour name "HackiOS" (`_http._tcp`), and its addresses printed in the log. On the Mac:
-`./y2s.sh wlog` (whole log, also `../xnulog.txt`) and `./y2s.sh wtail` (follow); `Y2S_IP=a.b.c.d` skips
+`./z3s.sh wlog` (whole log, also `../xnulog.txt`) and `./z3s.sh wtail` (follow); `Z3S_IP=a.b.c.d` skips
 Bonjour.
 
 **P5a — the kernel's own UFS driver on the Exynos 990, read only.** `redwood_ufshc.c` takes the controller
@@ -104,10 +104,10 @@ runs (`native.flags` `BLOCK_NATIVE_ONLY`): it reads each unit's GPT header into 
 kernel uses to tell the LUNs apart; reads never fall back to the loader.
 `ufs=2 ufs_native=1` gives `/dev/ufs_NAME` / `/dev/rufs_NAME` for every partition. `ufs_native_md5=1` hashes
 untouched partitions, LUNs 1-4 and the system image in super (+0x184b00000, 0x948c0000 bytes) in a thread
-of its own (`ufs: md5:` lines), for comparison with `backup-y2s/MD5SUMS` and `userland/system.apfs`.
+of its own (`ufs: md5:` lines), for comparison with `backup-z3s/MD5SUMS` and `userland/system.apfs`.
 
 ### Run S3 findings (25 October)
-- P4 verified: `./y2s.sh wlog` fetched the whole log over Wi-Fi (Bonjour may be slow to resolve; `Y2S_IP=address`
+- P4 verified: `./z3s.sh wlog` fetched the whole log over Wi-Fi (Bonjour may be slow to resolve; `Z3S_IP=address`
   works). The console's log alone lacked every plain `printf` (they go only to the message buffer, which keeps about
   the last half minute), so `kern.redwood_dmesg` (+ `_total`, counted in `log_putc_locked`) was added and `/log` now
   gives both, as the loader does on return; `/tail?log=N&dmesg=M` follows both.
@@ -121,20 +121,20 @@ of its own (`ufs: md5:` lines), for comparison with `backup-y2s/MD5SUMS` and `us
 - `ufs:` messages also go to the console's log now (they were lost from the message buffer by the time of a pull).
 
 ### P5a works (run S3, 25 October, 22:35)
-The kernel's own Exynos UFS driver reads the flash. **The S20+'s controller does not take a doorbell bit back
+The kernel's own Exynos UFS driver reads the flash. **The S20 Ultra's controller does not take a doorbell bit back
 while IS's UTRCS is set**: a command finishes (data in, response and OCS 0 written) but its UTRLDBR bit stays
 until UTRCS is cleared (UEFI's UfsDxe clears IS after every command, which is why it never sees this). The
 first command after the switch works only because UEFI left IS clear. `hc_finished()` takes a slot as done when
 its doorbell bit is clear or its OCS is no longer the invalid one written; `hc_retire()` clears UTRCS (and the
 slot's UTRLCNR bit), and UTRLCLR (a one) only if that does not do it. In the md5 run: 2715 slots taken back by
 the controller, 7843 by the acknowledgement, 0 cleared, 0 stuck.
-`ufs_native_md5=1`: **all 13 reads match** `backup-y2s` (radio, optics, spu, omr, bota, dtbo, keystorage, uh,
+`ufs_native_md5=1`: **all 13 reads match** `backup-z3s` (radio, optics, spu, omr, bota, dtbo, keystorage, uh,
 harx, vbmeta, blcmd, LUN 3 whole = lun-sdd.img) **and the system image in super = userland/system.apfs**
 (7c2023fa…, 2.49 GB at 96 MB/s, one read at a time, md5 in the loop). Data buffers are in the loader's 4 MB
 buffer (16 slots × 256 KB, low memory). Whether kernel memory above 4 GB works for data is not yet known:
 the earlier stuck reads into it were most likely this retirement issue, not DMA reach -- to be tried for speed.
 Other findings: boot options and the loader change only after **Reboot** in the menu (`uflash` says so);
-the up_param splash (`./y2s.sh hlogo`, `out/up_param-apple.img`) is prepared.
+the up_param splash (`./z3s.sh hlogo`, `out/up_param-apple.img`) is prepared.
 
 ### P5b works: iOS's root from the flash (25 October, 22:45)
 `ufs_root=super:184b00000:948c0000` (with `ufs=2 ufs_native=1`): the loader no longer reads the 2.3 GB system
@@ -144,7 +144,7 @@ starts the UFS driver early (`redwood_ufs_root()`; `redwood_ufs_init()` runs onc
 `/dev/ufs_root`, a read-only window of super (bsd/dev/redwood_ufs.c). First run: root mounted, SpringBoard up,
 Wi-Fi log fine, no read errors; available memory 3136 MB against 1629 MB in the RAM boot (wired 2793 vs 3346).
 Undo: the payload without `ufs_root=` (the image is still loaded from super as before).
-Host: `./y2s.sh ureboot` restarts the phone from Log access (for loader/command-line changes).
+Host: `./z3s.sh ureboot` restarts the phone from Log access (for loader/command-line changes).
 
 ### P6 built: the data volume kept in userdata (25 October, 23:00; the user chose userdata over cache)
 - **Store**: `userdata` (LUN 0, LBA 2850304, 28382208 blocks: checked before anything is allowed), 64 MiB in,
@@ -184,7 +184,7 @@ The var_store archive (above) was a checkpoint save; replaced by a writable file
   then `mount("hfs", "/private/var", 0, {"/dev/ufs_userdata", ...})`; the skeleton keeps what is there (existing
   directories and files left alone); `/private/var/run` emptied. Anything failing: the memory filesystem, as before.
   init is rebuilt from source (the prebuilt one matched the source: same size, same strings).
-- Also (found by the first var_store save): the S20+'s controller left with IS.UTRCS set makes UEFI's next command
+- Also (found by the first var_store save): the S20 Ultra's controller left with IS.UTRCS set makes UEFI's next command
   hang; the kernel acknowledges it after every command and at hand-back, and the loader clears it on take-back.
 - **Verified on the phone (23:40)**: first boot made the volume from the kit (211 MB written and read back); a first
   mount panicked in `zalloc` (HFS's zones were never made: `hfs_init_zones`/`hfs_sysctl_register` were missing from

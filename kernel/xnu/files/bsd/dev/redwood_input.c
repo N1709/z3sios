@@ -251,7 +251,7 @@ redwood_input_init(void)
 	redwood_buttons_init();
 	redwood_battery_init();
 	redwood_ufs_init();
-	redwood_hfs_init();             /* Apple's HFS+ (bsd/hfs): the S20+'s data volume on userdata */
+	redwood_hfs_init();             /* Apple's HFS+ (bsd/hfs): the S20 Ultra's data volume on userdata */
 	redwood_net_init();
 	redwood_adreno_init();
 	redwood_wifi_init();

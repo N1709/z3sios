@@ -51,7 +51,7 @@ void redwood_audio_set_sink(const char *name, redwood_audio_sink_t sink);
 bool redwood_audio_volume(uint32_t *below, bool *muted, uint32_t *generation);
 void redwood_audio_init(void);
 void redwood_virtio_sound_init(void);   /* boot-arg virtio_sound=1: QEMU's virtio sound device */
-void redwood_exynos_sound_init(void);   /* boot-arg snd=1: the S20+'s speakers (bsd/dev/redwood_exynos_sound.c) */
+void redwood_exynos_sound_init(void);   /* boot-arg snd=1: the S20 Ultra's speakers (bsd/dev/redwood_exynos_sound.c) */
 void redwood_exynos_sound_quiesce(void); /* its amplifiers into reset, its DMA stopped: at the run's end and on a panic's way out */
 void redwood_speaker_init(void);        /* boot-arg speaker_probe=N: a look at the phone's speaker amplifiers */
 void redwood_haptic_init(void);         /* boot-arg haptic=N: the phone's vibration motor (bsd/dev/redwood_haptic.c) */

@@ -32,8 +32,8 @@ Darwin)
 	;;
 esac
 
-# A GICv2 board (y2s, Exynos 990) selects osfmk/arm64/gic_v2_irq.c instead of the GICv3 one.
-# Set by common/devices/y2s.conf (GIC_V2=1); see docs/GICV2.md.
+# A GICv2 board (z3s, Exynos 990) selects osfmk/arm64/gic_v2_irq.c instead of the GICv3 one.
+# Set by common/devices/z3s.conf (GIC_V2=1); see docs/GICV2.md.
 [ "$GIC_V2" = 1 ] && HOSTENV+=(MACHINE_FLAGS_ARM64_BCM2837="-DARM64_BOARD_CONFIG_BCM2837 -Xclang -target-feature -Xclang +pan -DGENERIC_GIC_V2_IRQ=1")
 
 exec make REDWOOD_OBJECTS="$LX" SDKROOT=iphoneos ARCH_CONFIGS=ARM64 MACHINE_CONFIGS=${MACHINE:-BCM2837} KERNEL_CONFIGS=DEVELOPMENT \

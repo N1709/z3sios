@@ -2,7 +2,7 @@
 
 ## Status (2026‑10‑24): battery DONE
 
-`bsd/dev/redwood_max77705.c` (`bms=1`, now in `y2s.sh`'s default cmdline) reads the MAX77705
+`bsd/dev/redwood_max77705.c` (`bms=1`, now in `z3s.sh`'s default cmdline) reads the MAX77705
 fuel gauge (0x36) and charger (0x69) every 5 s, bit-banged on gpp1‑6/7, **read only**. It
 reports through `redwood_battery_report()` → `RedwoodBattery` (IOPMPowerSource). On the phone:
 the status bar % matches Android, the charging bolt follows plug/unplug, and the log reads
@@ -29,7 +29,7 @@ IOPS → status bar, lock screen, Settings › Battery`.
   (`CurrentCapacity`, `IsCharging`, `ExternalConnected`, `AdapterDetails`, …).
 - `userland/src/battery_test.c` + `rc.jobs.battery` exercise it.
 
-**So a y2s battery driver only has to fill `struct redwood_battery_state` and call
+**So a z3s battery driver only has to fill `struct redwood_battery_state` and call
 `redwood_battery_report()`.** The iOS side already works.
 
 ## Hardware (verified)
@@ -110,8 +110,8 @@ a fixed 25 °C. Find the ADC channel in `battery,*` DT properties later.
 - DWC3 at `0x10E00000` (`dr_mode = "otg"`), USB DRD PHY at `0x10C00000` (+
   `0x10AE0000`, `0x10AF0000`), compatible `samsung,exynos-usbdrd-phy`.
 - Mu‑Silicium has `SamsungPkg/Drivers/UsbfnDwc3Dxe` (device mode), not yet wired
-  into `y2sPkg`. The cheapest first win is **USB in the loader** (fastboot‑style upload
-  of kernels, so iteration needs no Android): add `UsbfnDwc3Dxe` to `y2sPkg` and teach
+  into `z3sPkg`. The cheapest first win is **USB in the loader** (fastboot‑style upload
+  of kernels, so iteration needs no Android): add `UsbfnDwc3Dxe` to `z3sPkg` and teach
   the loader's USB code the `EFI_USB_FUNCTION_IO_PROTOCOL` (it looks for Qualcomm's GUID today).
 - In XNU: a DWC3 gadget driver (CDC‑NCM networking or a serial console) is a large
   project. It would give SSH/log streaming. Defer until performance and battery are done.

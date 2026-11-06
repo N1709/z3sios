@@ -1,8 +1,8 @@
 /*
- * The Galaxy S20+'s (y2s, Exynos 990) power and volume keys.
+ * The Galaxy S20 Ultra's (z3s, Exynos 990) power and volume keys.
  *
  * All three are plain GPIOs of the ALIVE pinctrl, low while pressed (the phone's device tree,
- * gpio_keys, and the UEFI's y2sPkg KeypadDeviceLib, which reads them the same way):
+ * gpio_keys, and the UEFI's z3sPkg KeypadDeviceLib, which reads them the same way):
  *
  *   volume up    gpa0-3        volume down  gpa0-4        power  gpa2-4
  *

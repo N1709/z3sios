@@ -1,5 +1,5 @@
 /*
- * Wi-Fi of the Galaxy S20+ (y2s, Exynos 990), steps W2a and W2b of PLANS/06-wireless.md: the PCIe
+ * Wi-Fi of the Galaxy S20 Ultra (z3s, Exynos 990), steps W2a and W2b of PLANS/06-wireless.md: the PCIe
  * link to the Broadcom BCM4375 B1, as far as reading the chip's configuration space. The chip is
  * the endpoint of PCIe channel 0, Samsung's "host-v0" controller (compatible "samsung,exynos-pcie"):
  * a DesignWare core with Samsung's glue registers (ELBI), a one-lane Gen2 PHY and its PCS, all in
@@ -169,7 +169,7 @@ static struct redwood_bcm_bus bcm_bus;
 #define BANK_GPA0               0x000U          /* ALIVE */
 #define BANK_GPA3               0x060U          /* ALIVE */
 #define PIN_REG_ON              4U              /* gpb0-4 ([dt]dtbo 2307 wlan, dtb 1548 cfg_wlanen) */
-#define PIN_HOST_WAKE           7U              /* gpa0-7 on y2s ([dt]dtb 67); gpa3-7 on z3s */
+#define PIN_HOST_WAKE           7U              /* gpa0-7 on z3s ([dt]dtb 67); gpa3-7 on z3s */
 #define PIN_CLKREQ              0U              /* gpf0-0, function 2, pull-up ([dt]dtb 839) */
 #define PIN_PERST               1U              /* gpf0-1, output, high = released ([dt]dtb 849) */
 

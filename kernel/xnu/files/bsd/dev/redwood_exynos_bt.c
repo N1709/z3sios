@@ -1,8 +1,8 @@
 /*
- * The S20+'s Bluetooth: the BT side of the Broadcom BCM4375 (its Wi-Fi side is on PCIe, redwood_bcm4375.c), an
+ * The S20 Ultra's Bluetooth: the BT side of the Broadcom BCM4375 (its Wi-Fi side is on PCIe, redwood_bcm4375.c), an
  * HCI controller on UART1, and iOS's bluetoothd talking to it (PLANS/06-wireless.md, B1-B3). Boot-arg bt=1.
  *
- * The hardware (the phone's device tree, exynos990-y2s_eur_open_21.dts "bluetooth" + exynos9830.dts uart@10840000;
+ * The hardware (the phone's device tree, exynos990-z3s_eur_open_21.dts "bluetooth" + exynos9830.dts uart@10840000;
  * the z3s Linux port's BLUETOOTH.md for what made it work on the same SoC):
  *   UART1           0x10840000, SPI 416, a USI v2 block (USI_CON +0xc4, USI_OPTION +0xc8), FIFOs of 256
  *   its USI mode    SYSREG_PERIC1 0x10721000 ("usi_uart_bt"): 1 = UART

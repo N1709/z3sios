@@ -1,4 +1,4 @@
-# PLANS — y2s (Galaxy S20+, Exynos 990) iOS port
+# PLANS — z3s (Galaxy S20 Ultra, Exynos 990) iOS port
 
 Working plans for the next phase, after touch was brought up (2026‑10‑24).
 Each plan is a separate file. Every step says what to change, how to measure it,
@@ -24,8 +24,8 @@ Current state (2026‑10‑27): all eight cores, governor, thermal steps and idl
 
 | ID | Step | State |
 |---|---|---|
-| F1 | Export kernel work into `xnu/` (`export.sh`) | **done**: `y2s.sh kernel` runs it every build |
-| F2 | One-command ship script (`hackios-xnu-kernel-main/y2s.sh`) | **done**: payload splice verified byte-identical |
+| F1 | Export kernel work into `xnu/` (`export.sh`) | **done**: `z3s.sh kernel` runs it every build |
+| F2 | One-command ship script (`hackios-xnu-kernel-main/z3s.sh`) | **done**: payload splice verified byte-identical |
 | F3 | Log without a panic: five‑finger / Vol‑Down+Power 3 s → loader saves log | **done**: loader now saves before printing |
 | F4 | Perf instrumentation (`bsd/dev/redwood_perf.c`, `perf=1`) | **built**: per-core MHz at boot + every 60 s |
 | F5 | Doc corrections (A55 boot core, etc.) | planned |
@@ -68,4 +68,4 @@ Current state (2026‑10‑27): all eight cores, governor, thermal steps and idl
 
 - The kernel is **16,005,600 bytes**, and its slot in `recovery` is 16 MiB (32 → 48 MiB,
   where `root.apfs` starts). That leaves ~750 KB. Before it runs out, move `root.apfs` to 56 MiB
-  (`--roff 3800000` in `y2s.sh payload` and `pack`). `recovery` is 65.8 MiB, so it fits.
+  (`--roff 3800000` in `z3s.sh payload` and `pack`). `recovery` is 65.8 MiB, so it fits.

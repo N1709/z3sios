@@ -18,7 +18,7 @@ This document describes how the pieces fit together. The [README](../README.md) 
 | MAX77705, ACPM DVFS, ABOX and CS35L41                                |
 +-----------------------------------------------------------------------+
 | UEFI and loader                                                       |
-| Mu-Silicium y2sPkg, BootShim, XnuLoaderMain, xnuloader                |
+| Mu-Silicium z3sPkg, BootShim, XnuLoaderMain, xnuloader                |
 +-----------------------------------------------------------------------+
 | Samsung sboot                                                         |
 +-----------------------------------------------------------------------+
@@ -28,7 +28,7 @@ Nothing below XNU is Linux. XNU runs at EL1 on the phone's CPU, owns the MMU, th
 
 ## The boot flow in detail
 
-1. **sboot** reads the `boot` partition if the boot-recovery flag in `misc` is clear, otherwise `recovery`. In a standalone installation both hold the HackiOS boot image. In an Android installation `boot` still holds Android's kernel, and `y2s.sh flash` writes the image to `recovery` and reboots into it.
+1. **sboot** reads the `boot` partition if the boot-recovery flag in `misc` is clear, otherwise `recovery`. In a standalone installation both hold the HackiOS boot image. In an Android installation `boot` still holds Android's kernel, and `z3s.sh flash` writes the image to `recovery` and reboots into it.
 2. **The boot image** is an Android boot image whose kernel payload is `BootShim` plus a 2 MiB UEFI firmware volume. `BootShim` copies the firmware volume to `0xE8000000` and jumps to its entry point. The image header's `image_size` is exactly 2 MiB. Nothing is appended after the firmware volume.
 3. **Mu-Silicium** starts its DXE core, memory map, console, UFS, USB and keypad drivers. `BdsDxe` runs and finds no boot option on this phone. The patched `PlatformBootManagerUnableToBoot()` calls `XnuLoaderMain()` instead of halting.
 4. **XnuLoaderMain** looks at `0xE8100000`, inside the firmware volume's unused tail, for the XNUP container. It finds `loader.efi`, calls `LoadImage()` and `StartImage()`, and cold-resets if the loader returns without starting a kernel.
@@ -46,7 +46,7 @@ Nothing below XNU is Linux. XNU runs at EL1 on the phone's CPU, owns the MMU, th
 
 ## Memory map
 
-These are the addresses used by the port. The UEFI memory map comes from `y2sPkg/Library/MemoryMapLib/MemoryMapLib.c` and the S5E9830 platform package.
+These are the addresses used by the port. The UEFI memory map comes from `z3sPkg/Library/MemoryMapLib/MemoryMapLib.c` and the S5E9830 platform package.
 
 | Region | Address | Notes |
 |---|---|---|
@@ -80,7 +80,7 @@ kernel/xnu/
 
 `apply.sh` clones `apple-oss-distributions/xnu` at tag `xnu-8796.121.2`, applies the patch, and copies `files/` over the tree. `export.sh` does the opposite. A working tree is an ordinary git checkout on a branch called `redwood`.
 
-The overlay contains both generic HackiOS support code and the y2s drivers. The generic code includes APFS, ramfs, the Mini drivers, the input core, the loader return path and the QEMU virtio devices. The y2s code is concentrated in:
+The overlay contains both generic HackiOS support code and the z3s drivers. The generic code includes APFS, ramfs, the Mini drivers, the input core, the loader return path and the QEMU virtio devices. The z3s code is concentrated in:
 
 | File | Purpose |
 |---|---|
@@ -107,13 +107,13 @@ The kernel is configured as `BCM2837`, which is a generic ARM64 configuration in
 
 ## Driver model
 
-There is no device tree binding layer like Linux's. The loader writes a device tree because XNU's ARM platform code expects one, but the y2s drivers generally find their hardware through a boot argument and a fixed address from the device tree.
+There is no device tree binding layer like Linux's. The loader writes a device tree because XNU's ARM platform code expects one, but the z3s drivers generally find their hardware through a boot argument and a fixed address from the device tree.
 
 A typical driver follows this shape:
 
 1. A boot argument, for example `touch_ts=1`, `wifi_pcie=4`, `mali=1`, `snd=1`, `dvfs=2`, enables it.
 2. A probe function maps the registers with `ml_io_map()` or `ml_io_map_unmappable()`, reads an ID register, and refuses to continue if the ID is wrong.
-3. A kernel thread polls or waits on an interrupt. The y2s drivers are deliberately polled where an interrupt would add risk; the Wi-Fi driver polls its mailbox, and the touch driver polls the attention GPIO.
+3. A kernel thread polls or waits on an interrupt. The z3s drivers are deliberately polled where an interrupt would add risk; the Wi-Fi driver polls its mailbox, and the touch driver polls the attention GPIO.
 4. Status goes to the log through `loader_log_line()` or a prefixed `printf`. The log ring is readable over Wi-Fi and is saved by the loader.
 5. The driver reports into an existing iOS service where one exists: `redwood_input.c` for touch and keys, `RedwoodBattery` for power, `redwood_net.c` for `en0`, `MiniIOSurface` and `MiniIOMobileFramebuffer` for graphics.
 
@@ -121,7 +121,7 @@ Registers are not assumed to be live. A write-back test before the real work cat
 
 ## Boot arguments
 
-The command line is stored in the XNUP payload, not compiled into the kernel. `./y2s.sh payload "<args>"` changes it without a rebuild.
+The command line is stored in the XNUP payload, not compiled into the kernel. `./z3s.sh payload "<args>"` changes it without a rebuild.
 
 | Argument | Effect |
 |---|---|
@@ -166,9 +166,9 @@ There are three channels, and they answer different questions.
 - **The kernel message buffer** receives ordinary `printf` and `IOLog` output. It is smaller and wraps, so a plain `printf` can disappear before a log is pulled. `redwood_logd.c` publishes both the ring and the message buffer.
 - **The loader's own console** shows the UEFI and loader diagnostics before XNU starts. It shows only the tail on a long log, which is why the loader writes the full log to storage before printing it.
 
-**The m2m channel** (`bsd/dev/redwood_m2m.c`, `/dev/m2m`, `sysctl kern.m2m_log`) holds structured records from the Metal driver, the GPU, the display, power and input, `<seq> <seconds> <severity> <CATEGORY> <process>[<pid>] <message>`. `rwlogd` serves it at `/m2m`, and `./y2s.sh loop` saves and compares it run by run ([plans/10-mali2metal.md](plans/10-mali2metal.md)).
+**The m2m channel** (`bsd/dev/redwood_m2m.c`, `/dev/m2m`, `sysctl kern.m2m_log`) holds structured records from the Metal driver, the GPU, the display, power and input, `<seq> <seconds> <severity> <CATEGORY> <process>[<pid>] <message>`. `rwlogd` serves it at `/m2m`, and `./z3s.sh loop` saves and compares it run by run ([plans/10-mali2metal.md](plans/10-mali2metal.md)).
 
-`./y2s.sh log` reads the saved log from `recovery`+16 MiB over adb, strips NUL bytes and writes `../xnulog.txt`. `./y2s.sh wlog` fetches it over HTTP from the running phone. `./y2s.sh ulog` fetches it over USB from the boot menu.
+`./z3s.sh log` reads the saved log from `recovery`+16 MiB over adb, strips NUL bytes and writes `../xnulog.txt`. `./z3s.sh wlog` fetches it over HTTP from the running phone. `./z3s.sh ulog` fetches it over USB from the boot menu.
 
 ## Why the boot arrangement is unusual
 

@@ -55,8 +55,8 @@
 #define BLOCK           4096
 #define BUFFER          (4u << 20)              /* the loader's own buffer: one request a write */
 /*
- * Where the store is: the Xiaomi's darwin (its block 2097152, past the cryptexes), or the S20+'s
- * userdata, 64 MiB in (bsd/dev/redwood_ufs.c, UFS_Y2S_STORE_*: the kernel takes writes there and
+ * Where the store is: the Xiaomi's darwin (its block 2097152, past the cryptexes), or the S20 Ultra's
+ * userdata, 64 MiB in (bsd/dev/redwood_ufs.c, UFS_Z3S_STORE_*: the kernel takes writes there and
  * nowhere else). Chosen at start by which of the two devices there is (pick_layout).
  */
 static const char *store_device = "/dev/rufs_darwin";
@@ -1302,7 +1302,7 @@ static int
 bootok(void)
 {
 	if (!has_boot_state) {
-		return 1;                       /* (the S20+: no boot guard in the flash) */
+		return 1;                       /* (the S20 Ultra: no boot guard in the flash) */
 	}
 	static uint8_t block[BLOCK] __attribute__((aligned(BLOCK)));
 	struct boot_state st;

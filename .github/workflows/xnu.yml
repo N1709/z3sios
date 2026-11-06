@@ -1,0 +1,325 @@
+name: xnu
+
+# Build the z3sios kernel and, when asked, the UEFI and a flashable boot image.
+#
+# The kernel builds on Linux with stock clang plus theos (its cctools/ld64 and the
+# iPhoneOS 16.5 SDK) -- no macOS runner is needed.  The snapshot does not carry
+# xnu-deps/, so the dependencies are taken from the upstream hackios-xnu-kernel tree
+# (xnu-deps/setup.sh builds mig, unifdef, tcsh, the SDK overlay and the two kernel
+# libraries; it is not copied from this repository).
+#
+# Artifacts:
+#   xnu-kernel   mach.development.bcm2837 + loader.efi + the build log
+#   z3s-uefi     SILICIUM_UEFI.fd (2 MiB)
+#   z3s-boot-img z3s-boot.img (UEFI + the USB-resident loader, `fastboot boot` it)
+#
+# A recovery image (z3s.sh pack) is not made here: it also needs userland/root.apfs,
+# which is built from the user's own iOS 16.5 files and is not in the repository.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: hackios-xnu-kernel revision that provides xnu-deps/
+        default: main
+      keep_going:
+        description: make -k (collect all compile errors in one run)
+        default: "true"
+      build_image:
+        description: both / kernel only / image only
+        type: choice
+        options:
+          - both
+          - kernel
+          - image
+        default: both
+  push:
+    branches: [main]
+    paths:
+      - "kernel/**"
+      - "uefi/**"
+      - "userland/**"
+      - ".github/workflows/xnu.yml"
+
+concurrency:
+  group: xnu-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UPSTREAM_REPO: https://github.com/oosexgang/hackios-xnu-kernel.git
+  UPSTREAM_REF: ${{ inputs.upstream_ref || 'main' }}
+  KERNEL: kernel/xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
+
+jobs:
+  # ---------------------------------------------------------------------------------------------
+  # The kernel and the loader: Linux, stock clang, theos.
+  # ---------------------------------------------------------------------------------------------
+  kernel:
+    if: ${{ (inputs.build_image || 'both') != 'image' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host tools
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq \
+            build-essential clang lld llvm flex bison m4 perl python3 \
+            autoconf automake libtool xz-utils libtinfo6 libssl-dev \
+            libxml2-dev zlib1g-dev
+          clang --version | head -1
+          ld.lld --version | head -1
+
+      - name: Theos, its Linux cctools and the iPhoneOS 16.5 SDK
+        run: |
+          export THEOS="$HOME/theos"
+          export CI=1
+          # The official installer clones theos, installs the (non-Swift) Linux toolchain
+          # and a default SDK; 16.5 is installed explicitly afterwards.
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          "$THEOS/bin/install-sdk" 16.5
+          test -x "$THEOS/toolchain/linux/iphone/bin/ld"
+          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
+          echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          "$THEOS/toolchain/linux/iphone/bin/ld" -v 2>&1 | head -1 || true
+
+      - name: Kernel build dependencies (xnu-deps from upstream)
+        run: |
+          # This snapshot is the port, not the whole workspace: xnu-deps/ (mig, unifdef,
+          # tcsh, the SDK overlay, firehose and the pthread kext) lives upstream.
+          git init -q /tmp/upstream
+          git -C /tmp/upstream remote add origin "$UPSTREAM_REPO"
+          git -C /tmp/upstream fetch -q --depth 1 origin "$UPSTREAM_REF"
+          git -C /tmp/upstream checkout -q FETCH_HEAD
+          mkdir -p kernel/xnu-deps
+          cp -a /tmp/upstream/xnu-deps/. kernel/xnu-deps/
+          chmod +x kernel/xnu-deps/setup.sh
+          echo "xnu-deps from $UPSTREAM_REPO at $(git -C /tmp/upstream rev-parse --short HEAD)"
+
+      - name: Apple's xnu-8796.121.2 with this port's changes
+        working-directory: kernel
+        run: ./xnu/apply.sh
+
+      - name: Kernel build dependencies, stage 1 and 2
+        working-directory: kernel
+        run: ./xnu-deps/setup.sh
+
+      - name: Build the kernel (GICv2)
+        working-directory: kernel
+        run: |
+          set -o pipefail
+          touch .kernel-start
+          # The build exits 2 after linking: check_all_exports and the iig symbolsets run
+          # after mach.development.bcm2837 exists (xnu/README.md).  Judge the file.
+          GIC_V2=1 ./xnu-build.sh -j"$(nproc)" ${{ inputs.keep_going == 'false' && '' || '-k' }} 2>&1 | tee ../build.log || true
+          if [ ! -f "$GITHUB_WORKSPACE/$KERNEL" ]; then
+            echo "::error::the kernel was not linked; see build.log"
+            tail -60 ../build.log
+            exit 1
+          fi
+          if [ ! "$GITHUB_WORKSPACE/$KERNEL" -nt .kernel-start ]; then
+            echo "::error::mach.development.bcm2837 was not rebuilt; see build.log"
+            tail -60 ../build.log
+            exit 1
+          fi
+          ls -l "$GITHUB_WORKSPACE/$KERNEL"
+
+      - name: Build the loader (GICv2)
+        working-directory: kernel
+        env:
+          GIC_V2: "1"
+        run: ./xnuloader/build.sh
+
+      - name: Collect the kernel and loader
+        run: |
+          mkdir -p dist
+          cp "$KERNEL" dist/mach.development.bcm2837
+          cp kernel/xnuloader/loader.efi dist/loader.efi
+          cp build.log dist/build.log
+          (cd dist && sha256sum mach.development.bcm2837 loader.efi > SHA256SUMS)
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: xnu-kernel
+          path: dist/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------------------------
+  # Mu-Silicium's UEFI for z3sPkg.  Mu-Basetools has no x86 host support, hence the arm runner.
+  # ---------------------------------------------------------------------------------------------
+  uefi:
+    if: ${{ (inputs.build_image || 'both') != 'kernel' }}
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host tools
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq python3 python3-venv python3-pip git nasm uuid-dev
+          python3 --version
+
+      - name: Fetch Mu-Silicium
+        run: |
+          git clone -q --recursive https://github.com/Project-Silicium/Mu-Silicium.git
+          git -C Mu-Silicium log -1 --oneline
+
+      - name: Apply this port's UEFI hook and platform package
+        run: |
+          git -C Mu-Silicium apply --3way "$GITHUB_WORKSPACE/uefi/z3s.patch"
+          cp -a "$GITHUB_WORKSPACE/uefi/Platforms/Samsung/z3sPkg" Mu-Silicium/Platforms/Samsung/
+          cp "$GITHUB_WORKSPACE/uefi/Resources/Configs/z3s.toml" Mu-Silicium/Resources/Configs/
+          cp "$GITHUB_WORKSPACE/uefi/Resources/DTBs/z3s.dtb" Mu-Silicium/Resources/DTBs/
+          cp "$GITHUB_WORKSPACE"/uefi/BootManagerLib/XnuLoader.c \
+             "$GITHUB_WORKSPACE"/uefi/BootManagerLib/XnuLoader.h \
+             "$GITHUB_WORKSPACE"/uefi/BootManagerLib/BootManager.c \
+             "$GITHUB_WORKSPACE"/uefi/BootManagerLib/BootManagerLib.inf \
+             Mu-Silicium/Silicon/Silicium/SiliciumPkg/Library/BootManagerLib/
+
+      - name: Python environment
+        working-directory: Mu-Silicium
+        run: |
+          python3 -m venv venv-linux
+          venv-linux/bin/pip install -q --upgrade pip
+          venv-linux/bin/pip install -q -r pip-requirements.txt
+
+      - name: Build the UEFI
+        working-directory: Mu-Silicium
+        run: |
+          # Mu-Basetools' mu_nasm comes through NuGet and wants Mono; the system nasm
+          # in the directory it expects is the documented workaround.
+          D=Mu_Basecore/BaseTools/Bin/mu_nasm_extdep
+          mkdir -p "$D/Linux-x86-64"
+          echo 'version: 20016.1.1' > "$D/extdep_state.yaml"
+          ln -sf /usr/bin/nasm "$D/Linux-x86-64/nasm"
+          ln -sf /usr/bin/ndisasm "$D/Linux-x86-64/ndisasm"
+          source venv-linux/bin/activate
+          python3 build_uefi.py -d z3s
+
+      - name: Collect the firmware volume
+        run: |
+          FD=$(find Mu-Silicium/Build -path '*z3sPkg*' -name SILICIUM_UEFI.fd | head -1)
+          test -n "$FD" || { echo "::error::SILICIUM_UEFI.fd was not produced"; find Mu-Silicium/Build -name '*.fd' | head; exit 1; }
+          test "$(stat -c%s "$FD")" -eq 2097152 || { echo "::error::the firmware volume is not 2 MiB"; exit 1; }
+          mkdir -p dist
+          cp "$FD" dist/SILICIUM_UEFI.fd
+          (cd dist && sha256sum SILICIUM_UEFI.fd > SHA256SUMS)
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: z3s-uefi
+          path: dist/
+          retention-days: 14
+
+  # ---------------------------------------------------------------------------------------------
+  # UEFI + loader in one Android boot image.  `fastboot boot z3s-boot.img`.
+  # ---------------------------------------------------------------------------------------------
+  image:
+    name: boot image
+    needs: [kernel, uefi]
+    if: always() && needs.kernel.result == 'success' && needs.uefi.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: xnu-kernel
+          path: kernel-dist
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: z3s-uefi
+          path: uefi-dist
+
+      - name: Host tools
+        run: |
+          sudo apt-get update -qq -o Acquire::Retries=3
+          sudo apt-get install -y -qq git gcc-aarch64-linux-gnu
+
+      - name: Fetch Mu-Silicium's shim and Android image tools
+        run: |
+          git clone -q --depth 1 https://github.com/Project-Silicium/Mu-Silicium.git kernel/Mu-Silicium
+          mkdir -p kernel/Mu-Silicium/Build/z3sPkg/RELEASE_CLANGPDB/FV
+          cp uefi-dist/SILICIUM_UEFI.fd \
+             kernel/Mu-Silicium/Build/z3sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd
+          cp uefi/Resources/DTBs/z3s.dtb kernel/Mu-Silicium/Resources/DTBs/z3s.dtb
+          # mkxnuimg.py reads the ramdisk and mkbootimg from the Mu tree.
+          test -f kernel/Mu-Silicium/Resources/ramdisk
+          test -f kernel/Mu-Silicium/Resources/Scripts/mkbootimg.py
+
+      - name: Build the XNUP payload and the boot image
+        working-directory: kernel
+        run: |
+          set -euo pipefail
+          . common/devices/z3s.conf
+          export UEFI_TARGET=z3s
+          export UEFI_FD="$PWD/Mu-Silicium/Build/z3sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd"
+          export DTB="$PWD/Mu-Silicium/Resources/DTBs/z3s.dtb"
+          export FD_BASE FD_SIZE PAYLOAD_BASE
+          mkdir -p ../out
+          # --usb: the loader stays resident and takes commands over USB (log access,
+          # oem write) instead of starting XNU immediately.
+          python3 xnuloader/mkpayload.py -o ../out/usb-payload.bin \
+            loader.efi=../kernel-dist/loader.efi --usb
+          python3 mkxnuimg.py -p ../out/usb-payload.bin -o ../out/z3s-boot.img
+
+      - name: Collect the flashable image
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp out/z3s-boot.img dist/
+          cp kernel-dist/mach.development.bcm2837 dist/
+          (cd dist && sha256sum z3s-boot.img mach.development.bcm2837 > SHA256SUMS)
+          cat > dist/FLASH.txt <<'EOF'
+          z3sios boot image for the Galaxy S20 Ultra 5G (z3s, SM-G988B)
+          =================================================================
+
+          z3s-boot.img  Mu-Silicium UEFI + the xnuloader EFI application.  The loader
+                        stays resident and takes commands over USB (log access, oem
+                        write); it does not start XNU by itself.  Boot it without
+                        writing anything:
+
+                            fastboot boot z3s-boot.img
+
+          mach.development.bcm2837
+                        the XNU kernel built in this run.  It is the same kernel the
+                        recovery image (kernel/z3s.sh pack) carries at +32 MiB.
+
+          Building the full recovery image needs userland/root.apfs, which comes from
+          the user's own iOS 16.5 files and is not part of the repository:
+
+              ./z3s.sh payload "$(cat m2m.cmdline)"
+              ./z3s.sh pack
+
+          Verify before flashing:
+
+              sha256sum -c SHA256SUMS
+          EOF
+          ls -l dist
+
+      - name: Summary
+        run: |
+          {
+            echo "### z3sios boot image"
+            echo
+            echo "| file | size | sha256 |"
+            echo "| --- | --- | --- |"
+            for f in dist/*; do
+              [ -f "$f" ] || continue
+              echo "| $(basename "$f") | $(stat -c%s "$f") B | $(sha256sum "$f" | cut -d' ' -f1) |"
+            done
+            echo
+            echo "Kernel zip: \`xnu-kernel\` artifact. UEFI zip: \`z3s-uefi\`. Image zip: \`z3s-boot-img\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: z3s-boot-img
+          path: dist/
+          if-no-files-found: error

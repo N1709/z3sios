@@ -179,7 +179,7 @@ the port is stable, checking that every `redwood_*` debug path still builds.
 | 24 Oct | `cpus=8` + PSCI trampoline + context-id fix | — | ~25 000 | 10–18 | "~50× faster"; 8/8 cores |
 | 24 Oct | + `fb_damage` (byte memcmp) | — | 45 000–90 000 | 7–15 | the compare cost more than it saved |
 | 24 Oct | `cpumask=0x3f` (no M5s) | — | ~45 000 | 7–15 | "a bit quicker" |
-| 24 Oct | + word-wise row compare | — | **7 000–17 000** | 9–16 | **current default** (`y2s.sh` DEFAULT_CMDLINE) |
+| 24 Oct | + word-wise row compare | — | **7 000–17 000** | 9–16 | **current default** (`z3s.sh` DEFAULT_CMDLINE) |
 
 ## 5. What was learnt (24 Oct)
 

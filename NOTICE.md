@@ -15,11 +15,11 @@ The loader, the userland framework and much of the kernel support code come from
 - https://github.com/oosexgang/hackios-xnu-kernel
 - https://github.com/oosexgang/hackios-xnu-userland
 
-HackiOS is released under the MIT licence. The original copyright notice is retained in the affected files. The y2s-specific drivers and documentation in this repository are additions or modifications on top of that work.
+HackiOS is released under the MIT licence. The original copyright notice is retained in the affected files. The z3s-specific drivers and documentation in this repository are additions or modifications on top of that work.
 
 ## Mu-Silicium and Project Silicium
 
-`uefi/` contains the `y2sPkg` platform package, the loader hook and a patch against Mu-Silicium. Mu-Silicium is released under the BSD 2-Clause licence, with additional notices from Apple, ARM, Microsoft, Intel, Linaro, the Android Open Source Project and other contributors. Those notices are retained in the Mu-Silicium tree. The UEFI binary is not included.
+`uefi/` contains the `z3sPkg` platform package, the loader hook and a patch against Mu-Silicium. Mu-Silicium is released under the BSD 2-Clause licence, with additional notices from Apple, ARM, Microsoft, Intel, Linaro, the Android Open Source Project and other contributors. Those notices are retained in the Mu-Silicium tree. The UEFI binary is not included.
 
 ## Mesa, Panfrost and libdrm
 
@@ -53,7 +53,7 @@ The port needs the following files, which the user must extract from hardware th
 - The iOS 16.5 IPSW, downloaded from Apple.
 - A stock Samsung AP tar for recovery.
 
-`kernel/xnu/files/bsd/dev/redwood_focaltech_fw.h` is part of the upstream HackiOS touch driver and contains a FocalTech firmware array. It is retained because it is part of that driver, not because it is used on y2s. The y2s touch controller is a Samsung S6SY79A and uses `kernel/xnu/files/bsd/dev/redwood_sec_ts.c`.
+`kernel/xnu/files/bsd/dev/redwood_focaltech_fw.h` is part of the upstream HackiOS touch driver and contains a FocalTech firmware array. It is retained because it is part of that driver, not because it is used on z3s. The z3s touch controller is a Samsung S6SY79A and uses `kernel/xnu/files/bsd/dev/redwood_sec_ts.c`.
 
 ## Trademarks
 

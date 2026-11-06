@@ -137,7 +137,7 @@ RedwoodWLANStart(const char * interface, const uint8_t * address)
 }
 
 /*
- * The S20+'s Bluetooth (bsd/dev/redwood_exynos_bt.c): an IOService named "bluetooth", which is what iOS's bluetoothd
+ * The S20 Ultra's Bluetooth (bsd/dev/redwood_exynos_bt.c): an IOService named "bluetooth", which is what iOS's bluetoothd
  * looks for before anything else ("No bluetooth on this device." without it), with what it reads of it:
  * local-mac-address (its BD address, as BT_DEVICE_ADDRESS), transport-encoding (1: H4) and transport-speed.
  */

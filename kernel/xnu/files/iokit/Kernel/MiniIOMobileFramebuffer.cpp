@@ -4,7 +4,7 @@
  *
  * The display is the framebuffer the boot loader left us (the one the kernel's text console
  * draws on). A "swap" copies the pixels of the surfaces of its layers into that memory, and
- * "vsync" is a timer. On the y2s (Exynos 990) two things of the display hardware are driven:
+ * "vsync" is a timer. On the z3s (Exynos 990) two things of the display hardware are driven:
  * DECON's TE trigger, held while a frame is copied in (fb_te), and the panel's brightness, sent
  * as DCS commands through DSIM (fb_bl).
  *
@@ -47,7 +47,7 @@ extern "C" void loader_log_line(const char * line);
 extern "C" vm_offset_t ml_io_map(vm_offset_t phys_addr, vm_size_t size);
 
 /*
- * The Exynos 990's display controller (y2s; Samsung's dpu30/cal_9830). The panel is a MIPI command-mode
+ * The Exynos 990's display controller (z3s; Samsung's dpu30/cal_9830). The panel is a MIPI command-mode
  * one: on every TE pulse DECON_F reads the whole frame out of memory through one DMA channel, so pixels
  * written into the memory being read tear. Boot-arg fb_flip=1: two panel buffers, the frame drawn into
  * the one not being read, then that channel's base address switched to it (latched by DECON at the start
@@ -232,13 +232,11 @@ static TUNABLE(uint32_t, gBL, "fb_bl", 0);
 #define DSI_RX_LONG             0x1C
 #define  DSIM_CMD_PKT_GO_EN     (1u << 16)
 /*
- * hubble2's brightness is its gamma (CA) and AOR (B1: of every frame, the lines the OLEDs are held
- * off), Samsung's tables of both come from the panel's own flash (s6e3hab.c init_aor_table, DIM_FLASH),
- * and 6A (DBV) alone does nothing. Without the gamma: the AOR as a dimmer, from what the panel was
- * found with (its brightness then) to Samsung's darkest (0x0C77 of some 3200 lines held off at 2 nits).
+ * z3s's panel is the s6e3hab "hubble3": its brightness is register 6A (DBV, 11 bits) alone, mapped
+ * from nits by Samsung's own table below. Unlike hubble2 (y2s), no gamma (CA) or AOR (B1) write is
+ * needed -- and writing B1 here would dim the panel a second time, so those registers are left as
+ * the bootloader set them.
  */
-#define PANEL_AOR_DARKEST       0x0C27                  /* (Samsung's 0x0C77 leaves 9 of 3200 lines lit: the colours go red) */
-#define PANEL_AOR_BRIGHTEST     0x01E4                  /* Samsung's AOR from 265 nits up (AOR 0 makes the panel white) */
 #define kBacklightMax           65536
 #define kPanelMaxNits           420
 
@@ -673,9 +671,7 @@ public:
 	bool dsimWrite(const uint8_t * bytes, uint32_t length);
 	int dsimRead(uint8_t command, uint8_t * out, uint32_t max);
 	void panelReport(const char * when);
-	bool blSend(uint32_t dbv, uint32_t aor);
-	uint32_t aorRead(void);
-	uint32_t        fAor0;                  /* the AOR (B1) the panel was found with: its full brightness */
+	bool blSend(uint32_t dbv);
 	bool            fPacketGo;              /* DSIM writes with PKT_GO, as Samsung's dsim_write_data() does */
 	void brightnessRequest(uint32_t level);
 	void displayPower(bool on);
@@ -1926,24 +1922,9 @@ IOMobileFramebuffer::blSetup(void)
 		    THREAD_CALL_OPTIONS_ONCE);
 		IOLockLock(fDsimLock);
 		panelReport("as found");
-		fAor0 = PANEL_AOR_BRIGHTEST;
 		IOLockUnlock(fDsimLock);
-		fbSay("fb: bl: brightness by AOR from %#x (full) to %#x (darkest)\n", fAor0, PANEL_AOR_DARKEST);
+		fbSay("fb: bl: hubble3 brightness by DBV (6A), %.0f..%u nits\n", (double) gPanelNits[0], (unsigned) kPanelMaxNits);
 	}
-}
-
-/* the panel's AOR (B1, two bytes), or the brightest of Samsung's table if it cannot be read. With fDsimLock held. */
-uint32_t
-IOMobileFramebuffer::aorRead(void)
-{
-	static const uint8_t keyOn[] = { 0xF0, 0x5A, 0x5A }, keyOff[] = { 0xF0, 0xA5, 0xA5 };
-	uint8_t value[2];
-	int got;
-
-	(void) dsimWrite(keyOn, sizeof(keyOn));
-	got = dsimRead(0xB1, value, 2);
-	(void) dsimWrite(keyOff, sizeof(keyOff));
-	return got == 2 ? (uint32_t) value[0] << 8 | value[1] : PANEL_AOR_BRIGHTEST;
 }
 
 /*
@@ -2095,16 +2076,14 @@ IOMobileFramebuffer::dsimWrite(const uint8_t * bytes, uint32_t length)
 }
 
 bool
-IOMobileFramebuffer::blSend(uint32_t dbv, uint32_t aor)
+IOMobileFramebuffer::blSend(uint32_t dbv)
 {
 	static const uint8_t keyOn[] = { 0xF0, 0x5A, 0x5A }, keyOff[] = { 0xF0, 0xA5, 0xA5 }, update[] = { 0xF7, 0x0F };
 	static const uint8_t hbmOff[] = { 0x53, 0x00 };
 	const uint8_t level[] = { 0x6A, (uint8_t) (dbv >> 8 & 0x07), (uint8_t) (dbv & 0xff), 0x01 };
-	const uint8_t offRatio[] = { 0xB1, (uint8_t) (aor >> 8), (uint8_t) aor };
 	bool ok;
 
 	ok = dsimWrite(keyOn, sizeof(keyOn));
-	ok = ok && dsimWrite(offRatio, sizeof(offRatio));
 	ok = ok && dsimWrite(level, sizeof(level));
 	ok = ok && dsimWrite(hbmOff, sizeof(hbmOff));
 	ok = ok && dsimWrite(update, sizeof(update));
@@ -2157,8 +2136,8 @@ IOMobileFramebuffer::blWork(thread_call_param_t self, thread_call_param_t unused
 	IOMobileFramebuffer * fb = (IOMobileFramebuffer *) self;
 
 	for (;;) {
-		uint32_t target, dbv, aor, back;
-		uint64_t began, nits;
+		uint32_t target, dbv;
+		uint64_t began;
 		bool ok;
 
 		IOLockLock(fb->fBLLock);
@@ -2168,17 +2147,13 @@ IOMobileFramebuffer::blWork(thread_call_param_t self, thread_call_param_t unused
 			target = gBLThermalCap;
 		}
 		dbv = nitsToDBV(target);
-		nits = (uint64_t) target < ((uint64_t) kPanelMaxNits << 16) ? target : (uint64_t) kPanelMaxNits << 16;
-		aor = fb->fAor0 < PANEL_AOR_DARKEST ?
-		    PANEL_AOR_DARKEST - (uint32_t) ((uint64_t) (PANEL_AOR_DARKEST - fb->fAor0) * nits / ((uint64_t) kPanelMaxNits << 16)) :
-		    fb->fAor0;
-		if (aor == fb->fBLSent && fb->fBLWrites != 0) {
+		if (dbv == fb->fBLSent && fb->fBLWrites != 0) {
 			return;
 		}
 		began = mach_absolute_time();
 		IOLockLock(fb->fDsimLock);
-		ok = fb->blSend(dbv, aor);
-		fb->fBLSent = aor;
+		ok = fb->blSend(dbv);
+		fb->fBLSent = dbv;
 		fb->fBLWrites++;
 		fb->fBLFailures += !ok;
 		if (fb->fBLWrites <= 2) {
@@ -2187,11 +2162,10 @@ IOMobileFramebuffer::blWork(thread_call_param_t self, thread_call_param_t unused
 			snprintf(when, sizeof(when), "after write %u", fb->fBLWrites);
 			fb->panelReport(when);
 		}
-		back = fb->fBLWrites <= 2 ? fb->aorRead() : aor;
 		IOLockUnlock(fb->fDsimLock);
 		if (fb->fBLWrites <= 40 || !ok || fb->fBLWrites % 100 == 0) {
-			fbSay("fb: bl: %u.%03u nits -> AOR %#x (read back %#x%s), DBV %#x %s in %llu us (write %u, %u failed)\n", target >> 16,
-			    (uint32_t) (((uint64_t) (target & 0xffff) * 1000) >> 16), aor, back, fb->fPacketGo ? ", PKT_GO" : "", dbv,
+			fbSay("fb: bl: %u.%03u nits -> DBV %#x%s %s in %llu us (write %u, %u failed)\n", target >> 16,
+			    (uint32_t) (((uint64_t) (target & 0xffff) * 1000) >> 16), dbv, fb->fPacketGo ? ", PKT_GO" : "",
 			    ok ? "sent" : "NOT SENT", micros(mach_absolute_time() - began), fb->fBLWrites, fb->fBLFailures);
 		}
 	}

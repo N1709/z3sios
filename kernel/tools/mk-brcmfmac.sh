@@ -1,5 +1,5 @@
 #!/bin/bash
-# Build the driver of the y2s's Wi-Fi radio for our kernel: brcmfmac, Broadcom's FullMAC driver
+# Build the driver of the z3s's Wi-Fi radio for our kernel: brcmfmac, Broadcom's FullMAC driver
 # as it is in Linux, for the BCM4375 B1 (PCI id 14e4:4475) on the Exynos 990's PCIe channel 0,
 # on the same layer that tools/mk-ath11k.sh builds Qualcomm's ath11k on. Three things meet here,
 # and only the third is in the repository:

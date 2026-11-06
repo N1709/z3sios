@@ -140,7 +140,7 @@ index 44274016a4cf..40ec8d165585 100644
  bsd/miscfs/mockfs/mockfs_fsnode.c	optional mockfs
  bsd/miscfs/mockfs/mockfs_vfsops.c	optional mockfs
  bsd/miscfs/mockfs/mockfs_vnops.c	optional mockfs
-+# Apple's HFS+ (apple-oss-distributions/hfs hfs-627.100.6, core/), built in: /private/var on the S20+'s flash
++# Apple's HFS+ (apple-oss-distributions/hfs hfs-627.100.6, core/), built in: /private/var on the S20 Ultra's flash
 +bsd/hfs/BTree.c	standard
 +bsd/hfs/BTreeAllocate.c	standard
 +bsd/hfs/BTreeMiscOps.c	standard
@@ -1923,7 +1923,7 @@ index 5219fb0d9ed6..d88015b06b3a 100644
  	}
  
 +//
-+//	The S20+: the root on the phone's flash (bsd/dev/redwood_ufs.c, ufs_root=). rd=md0 stays on the
++//	The S20 Ultra: the root on the phone's flash (bsd/dev/redwood_ufs.c, ufs_root=). rd=md0 stays on the
 +//	command line all the same -- launchd and bsd_rooted_ramdisk() read it as "a RAM disk boot" -- but
 +//	there is no md0: the payload's small image is md1, as in a RAM boot.
 +//
@@ -2445,7 +2445,7 @@ index 94e91306b143..7e0bb957daf9 100644
  }
  
 +/*
-+ * Each core's identity and cache geometry, into the log once as it first comes up: the S20+ mixes
++ * Each core's identity and cache geometry, into the log once as it first comes up: the S20 Ultra mixes
 + * three kinds of core (Cortex-A55, Cortex-A76, Samsung M5), and iOS assumes, as on an iPhone, that
 + * they are all alike -- what userland is told of the caches (the commpage) comes from the boot core.
 + */
@@ -3946,7 +3946,7 @@ index d9f0723244e5..83bbfff324f7 100644
  #define ARM_ARCH_TIMER
 +#ifndef GENERIC_GIC_V2_IRQ
 +#define GENERIC_GIC_V3_IRQ                 1 /* interrupts via GICv3 Group 1, see osfmk/arm64/gic_v3_irq.c */
-+#endif /* a GICv2 board (y2s / Exynos 990) defines GENERIC_GIC_V2_IRQ on the command line */
++#endif /* a GICv2 board (z3s / Exynos 990) defines GENERIC_GIC_V2_IRQ on the command line */
 +#define GENERIC_PSCI_SMP                  1 /* more cores are started through PSCI, see osfmk/arm64/psci_smp.c */
 +
 +/*

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-The S20+'s data volume (PLANS/09-standalone.md, P6): from the HFS+ that tools/mk-userdata-hfs.sh made with macOS's
+The S20 Ultra's data volume (PLANS/09-standalone.md, P6): from the HFS+ that tools/mk-userdata-hfs.sh made with macOS's
 newfs_hfs (head.img: its first 512 MB, catalog.img: the catalog B-tree's blocks, tail.img: its last 2 MB), a
 "format kit" for the phone's init to write into userdata at the first boot (userland/src/init.c, var_hfs): every
 block the new file system uses, as data where it is not zero and as a run of zeros where it is (so nothing Android

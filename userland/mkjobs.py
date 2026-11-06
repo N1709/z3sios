@@ -214,7 +214,7 @@ import sys
 # (mediaserverd is not among them, for all that there is neither sound nor a camera:
 # it is where VideoToolbox decodes for every other process, a HEIC picture included; see src/inject_media.c.)
 # BlueTool: Apple's own never runs -- it would load an iPhone's Bluetooth firmware into whatever chip is there; the
-# S20+'s kernel boots its chip and userland/com.apple.BlueTool.plist stands in (src/bluetool_stub.c)
+# S20 Ultra's kernel boots its chip and userland/com.apple.BlueTool.plist stands in (src/bluetool_stub.c)
 DENY = ('watchdog', 'CommCenter', 'wifi', 'WiFi', 'bluetooth', 'BTServer', 'BlueTool', 'locationd', 'softwareupdate',
         'datamigrator', 'backupd', 'thermalmonitord', 'keybagd', 'nfcd', 'biometrickitd', 'pearld',
         'obliterat', 'storage_mounter', 'com.apple.fud', 'sepd', 'seputil', 'camera', 'ReportCrash',

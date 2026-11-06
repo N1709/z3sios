@@ -1,5 +1,5 @@
 /*
- * The S20+'s (y2s, Exynos 990) loudspeakers: what iOS plays (/dev/redwood-audio, redwood_audio.c) through the
+ * The S20 Ultra's (z3s, Exynos 990) loudspeakers: what iOS plays (/dev/redwood-audio, redwood_audio.c) through the
  * SoC's audio block (ABOX) to the two Cirrus Logic CS35L41 amplifiers. Boot-arg snd=1.
  *
  * Android drives ABOX through its DSP (the "Calliope" Cortex-A32, which Samsung's firmware runs): the AP's driver
@@ -930,7 +930,7 @@ sound_thread(__unused void *parameter, __unused wait_result_t result)
 	base = written = last_pos;
 	redwood_guard_configure(true, snd_gain);
 	redwood_guard_attenuation(REDWOOD_GUARD_SILENT);
-	redwood_audio_set_sink("the S20+'s speakers (ABOX UAIF2, CS35L41 x2)", exynos_sink);
+	redwood_audio_set_sink("the S20 Ultra's speakers (ABOX UAIF2, CS35L41 x2)", exynos_sink);
 	if (snd_tone != 0) {
 		tone_left = snd_tone * 48;
 		last_sound_us = now_us();

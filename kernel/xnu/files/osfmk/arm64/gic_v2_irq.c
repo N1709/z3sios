@@ -2,8 +2,8 @@
  * Minimal GICv2 (ARM GIC-400) support for generic (non-Apple) ARMv8 boards.
  *
  * This is the counterpart of osfmk/arm64/gic_v3_irq.c for boards whose interrupt
- * controller is a GICv2 rather than a GICv3. The Samsung Exynos 990 (Galaxy S20+
- * 5G, "y2s") is one: its device tree describes the controller as
+ * controller is a GICv2 rather than a GICv3. The Samsung Exynos 990 (Galaxy S20 Ultra
+ * 5G, "z3s") is one: its device tree describes the controller as
  * "arm,cortex-a15-gic" with four windows (GICD/GICC/GICH/GICV):
  *
  *   /interrupt-controller@10100000 {

@@ -1,5 +1,5 @@
 /*
- * The Galaxy S20+'s (y2s, Exynos 990) battery: the MAX77705's fuel gauge and charger, read over
+ * The Galaxy S20 Ultra's (z3s, Exynos 990) battery: the MAX77705's fuel gauge and charger, read over
  * I2C bit-banged on the pins of HSI2C_7 (gpp1-6 SCL, gpp1-7 SDA: bsd/dev/redwood_bbi2c.c), and
  * handed to iOS as the power source (redwood_battery_report() -> iokit/Kernel/RedwoodBattery.cpp).
  *
@@ -8,7 +8,7 @@
  *
  * From Samsung's Exynos 990 kernel (drivers/mfd/max77705.c, drivers/battery_v2/max77705_*.c,
  * include/linux/mfd/max77705-private.h) and the phone's device tree (max77705@66 on hsi2c_7,
- * fuelgauge,fg_resistor = 2, battery,battery_full_capacity = 4500 mAh):
+ * fuelgauge,fg_resistor = 2, battery,battery_full_capacity = 5000 mAh):
  *
  *   fuel gauge 0x36, 16-bit little-endian registers:
  *     0x00 STATUS     bit 3: no battery
@@ -68,7 +68,7 @@
 #define CHG_WCIN_DTLS(d00)      (((d00) >> 3) & 3U)
 
 #define FG_RESISTOR             2               /* fuelgauge,fg_resistor */
-#define DESIGN_MAH              4500            /* battery,battery_full_capacity */
+#define DESIGN_MAH              5000            /* battery,battery_full_capacity */
 
 /* Linux's POWER_SUPPLY_STATUS_*, which struct redwood_battery_state speaks */
 #define PS_STATUS_CHARGING      1

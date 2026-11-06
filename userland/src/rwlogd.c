@@ -16,7 +16,7 @@
  *   GET /               a line saying what this is
  *
  * Port 8080, advertised over Bonjour as "HackiOS" (_http._tcp): `dns-sd -B _http._tcp` finds it, and
- * ../y2s.sh wlog / wtail use it. One connection at a time; a slow client cannot hold it for long.
+ * ../z3s.sh wlog / wtail use it. One connection at a time; a slow client cannot hold it for long.
  */
 #include <arpa/inet.h>
 #include <dns_sd.h>

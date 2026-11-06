@@ -2,7 +2,7 @@
 
 ## Status (2026‑10‑24 evening): **CoreAnimation draws on the Mali**
 
-The whole stack runs on the phone, and `mali=1` is in `y2s.sh`'s default cmdline:
+The whole stack runs on the phone, and `mali=1` is in `z3s.sh`'s default cmdline:
 
 ```
 CoreAnimation → EAGL (libredwood-gl, src/eagl.c) → OSMesa → Mesa 25.0.7 panfrost ("Mali-G77 (Panfrost)", GLES 3.1)
@@ -45,7 +45,7 @@ next performance step is display work (G9):
 | libdrm stand‑in: `panfrost` 1.3, syncobjs, sync files, `drmCloseBufferHandle` | `tools/mesa/redwood-drm/` |
 | Mesa patch: libdrm stand‑in for panfrost, OSMesa GPU screen + IOSurface textures, mmap/munmap/import via IOKit, **G77 model row (tilebuffer 32768)** | `tools/mesa/panfrost-darwin.patch` |
 | Mesa build on macOS | `tools/mk-mesa.sh` (macOS compiler, meson/ninja in its venv, brew LLVM), `DRIVERS=softpipe,panfrost` |
-| GPU userland image on macOS | `userland/build-gpu-y2s.sh` (libOSMesa, libredwood-gl, inject.c/inject_sb.c with the RedwoodMali check, gl_test, mali_test), `rc.jobs.y2s` (no test load), `rc.jobs.mali` (tests) |
+| GPU userland image on macOS | `userland/build-gpu-z3s.sh` (libOSMesa, libredwood-gl, inject.c/inject_sb.c with the RedwoodMali check, gl_test, mali_test), `rc.jobs.z3s` (no test load), `rc.jobs.mali` (tests) |
 
 ## Hardware facts (verified on the phone)
 

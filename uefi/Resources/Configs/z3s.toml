@@ -22,5 +22,5 @@ append_dtb         = false
 # Android Boot Image Configs
 #
 [boot_image]
-dtb            = "Resources/DTBs/y2s.dtb"
+dtb            = "Resources/DTBs/z3s.dtb"
 header_version = 2

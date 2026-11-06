@@ -4,7 +4,7 @@ Parallel to Metal, at lower priority. Research notes and source copies are in th
 `files/wireless-ref/`: z3s `WIFI_BRINGUP.md`, `BLUETOOTH.md`, the brcmfmac patches, and Samsung's
 PCIe CAL.
 
-## Hardware (y2s device trees + z3s, the same SoC)
+## Hardware (z3s device trees + z3s, the same SoC)
 
 | | |
 |---|---|
@@ -56,7 +56,7 @@ Upstream pieces reused unchanged: `redwood_net.c` (en0), `redwood_sta.c` (scan/j
 | `wifi_pcie=3` | As 2, then **W3**: the loader's DMA pool granted to HSI1 through Samsung's hypervisor, `hvc(0xc6000101, (1<<16)|24, granule, 0x10000, 3)` per 64 KB. |
 
 **DMA pool.** z3s's S2MPU grants (their `s2mpu.c`) cover only low RAM, `0x80000000–0x100000000`. Our kernel's
-memory is entirely above 4 GB. So on y2s the loader takes 32 MB below 4 GB from UEFI (`reserve_wifi_dma()`,
+memory is entirely above 4 GB. So on z3s the loader takes 32 MB below 4 GB from UEFI (`reserve_wifi_dma()`,
 EfiLoaderData, 64 KB aligned) and publishes it in `/chosen` as `wifi-dma-base`/`wifi-dma-size`.
 `redwood_wifi_dma_pool()` maps it normal non-cacheable (memcpy-safe). All brcmfmac DMA (coherent rings and
 bounce buffers for streaming maps) comes from this pool.

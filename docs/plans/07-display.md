@@ -85,8 +85,9 @@ and D4 (zero copy).
   - **Brightness:** CoreBrightness now drives the backlight service (`brightness`/`backlight-level`
     0…65536, plus `brightness-nits`, `DisplayBrightness`, `IOMFBBrightnessLevel` = 0). All DCS writes
     report "sent" (the FIFO drains, sometimes after waiting up to 5 ms for a frame), **but the panel does
-    not change.** It powers up at maximum brightness. y2s is **hubble2** (dtbo panel‑name
-    `s6e3hab_hubble2_a3_s0_*`), with the same 6A/F0/F7 bytes as hubble3.
+    not change.** It powers up at maximum brightness. The y2s panel was **hubble2** (dtbo panel‑name
+    `s6e3hab_hubble2_a3_s0_*`); z3s's is **hubble3** (`s6e3hab_hubble3_a3_s0_*`), and both take the
+    same 6A/F0/F7 bytes.
   - **Power button:** iOS sends selector 12 (0 off / 1 on) and brightness 0. The image goes black but the
     panel stays lit.
   - **Speed:** about 6 ms per frame goes to comparing (single‑threaded), 1–12 ms to scaling.
@@ -96,7 +97,7 @@ and D4 (zero copy).
   - **Screen off/on works** (DCS 28/29, short packets): D8 done.
   - DCS reads work: ID `81 11 04`, power mode `9F`, `54` = `00` (HBM off, so not the cause).
     `6A` and `52` read `00 00 00` even after writes.
-  - Brightness still unchanged. hubble2's brightness is **gamma (CA, 34 bytes) + AOR (B1)**. Samsung's
+  - Brightness still unchanged. (These runs were on y2s.) hubble2's brightness is **gamma (CA, 34 bytes) + AOR (B1)**. Samsung's
     tables for both come from the panel's own flash (`DIM_FLASH`, `s6e3hab.c` `init_aor_table`); `6A` alone
     does nothing visible.
   - Compare 6 ms → **2.3 ms**. Scaling is now the cost: 2–19 ms depending on the rows changed.

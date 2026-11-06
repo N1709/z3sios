@@ -1,5 +1,5 @@
 /*
- * bluetool_stub: com.apple.BlueTool for the S20+ (PLANS/06-wireless.md, B3b).
+ * bluetool_stub: com.apple.BlueTool for the S20 Ultra (PLANS/06-wireless.md, B3b).
  *
  * iOS's bluetoothd does not talk to the Bluetooth chip until BlueTool has booted it: it sends
  * {kMsgId: "RunBuiltinScript", kMsgArgs: {script: boot|init|deepsleep, btaddress}} to the Mach service

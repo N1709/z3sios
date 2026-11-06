@@ -10,7 +10,7 @@ usage:
   tools/m2m.py wait PATTERN [--timeout S] wait until a record after the latest "tour start" matches PATTERN
   tools/m2m.py tail                       follow the channel live
 
-The phone: $Y2S_IP, else the Bonjour name HackiOS.local. The record format and the categories are in
+The phone: $Z3S_IP, else the Bonjour name HackiOS.local. The record format and the categories are in
 PLANS/10-mali2metal.md; a record is
 
   <seq> <seconds.millis> <sev> <CAT> <process>[<pid>] <message>
@@ -31,7 +31,7 @@ SEVERITY = {'I': 0, 'W': 1, 'E': 2, 'F': 3}
 
 
 def host():
-    return os.environ.get('Y2S_IP') or 'HackiOS.local'
+    return os.environ.get('Z3S_IP') or 'HackiOS.local'
 
 
 def get(path, timeout=60):

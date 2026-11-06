@@ -64,9 +64,9 @@ how it ends (`F CRASH ... ended by signal N` or `I DEV ... exited`).
 ## The loop
 
 ```
-./y2s.sh kernel                                     # when the kernel changed
-cd userland && QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-y2s.sh   # when userland changed
-./y2s.sh loop <label>                               # deploy, boot, tour, fetch, report
+./z3s.sh kernel                                     # when the kernel changed
+cd userland && QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-z3s.sh   # when userland changed
+./z3s.sh loop <label>                               # deploy, boot, tour, fetch, report
 ```
 
 `loop` with iOS up on Wi‑Fi and the USB cable in:
@@ -79,8 +79,8 @@ cd userland && QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-y2
    crashes, GPU faults, problems grouped by signature (with counts, processes, first step), per-step counts,
    performance per process and for the GPU, and what is new, gone or changed since the last run.
 
-Other: `./y2s.sh m2m tail` (live), `./y2s.sh m2m tour` (the tour on the running system), `./y2s.sh m2m report
-[RUN] [--prev RUN]`. `M2M_VIA=download ./y2s.sh loop` goes through Download Mode instead of Log access.
+Other: `./z3s.sh m2m tail` (live), `./z3s.sh m2m tour` (the tour on the running system), `./z3s.sh m2m report
+[RUN] [--prev RUN]`. `M2M_VIA=download ./z3s.sh loop` goes through Download Mode instead of Log access.
 
 **Reading Apple's code** where a record points: `tools/dsc.py 0x1d32b7b9c` disassembles the iOS 16.5 shared
 cache (`ios165/20F66__iPhone10,3_6`, as built: unslid, which is what CRASH records print in `[cache ...]`),
@@ -107,7 +107,7 @@ is refused. (Until 27 October the value was passed through unmapped, so "Log acc
 
 | 6 | 27 Oct | `batch1prof` (`M2M_PROF=1`; backboardd's timings not comparable): profiler with inclusive stacks; completion split; mip level/slice of attachments in the contract; pointer offsets passed as callee parameters (translator); cubic filter served as linear; the compiler library now rebuilt whenever `tools/mesa/air/` changes (it never was on the Mali build) | profile: `rwa_render_draw` 39 % of the library's samples, of which Panfrost's draw 46 %, our `check_bindings` 18 % (a `snprintf` per buffer per draw); BO allocation 18 % (pool BOs of each new batch: a `WAIT_BO` and an alloc ioctl each); chronod: a 7 s completion = 5.1 s queued + 0.1 ms GPU + 1.9 s handlers -- **not the GPU**; Search: 48 draws refused, attachments 704x128 at level 0 beside 352x64 at level 1; mediaserverd: `kernelHomographySolver` translates now, next refusals visible (texture view, `air.is_null_texture_2d`, a texture count) |
 | 7 | 27 Oct | `batch2`: item 2 step A (refusal text only when refusing); item 3 one serial completion queue per command queue; item 4 render area = smallest attachment | backboardd a draw 32.9 → **30.1 us** (library 27.9 → **25.1**), beyond the ±10 % floor only for the library; Search: **0 refused draws** (48 before), no `W ENC`; chronod: completions no longer queue behind other queues' (0 ahead), but single waits of seconds remain. *Correction:* 57 draws per command buffer here is **not** "recovered blur draws": identical builds give 42-57 (runs 5, 9, 10), it is noise |
-| 8 | 27 Oct | `batch3`: item 2 step B (kernel status page + submit seqno; shim answers own-BO `WAIT_BO` idle queries) | **invalid**: the run used a stale compiler library: the rebuild hash covered only `air/`, not `redwood-drm/` nor the patches. Fixed: the hash covers `air/*`, `redwood-drm/*`, `*.patch` in `mk-mesa.sh`, `build-gpu-y2s.sh` and `build.sh` |
+| 8 | 27 Oct | `batch3`: item 2 step B (kernel status page + submit seqno; shim answers own-BO `WAIT_BO` idle queries) | **invalid**: the run used a stale compiler library: the rebuild hash covered only `air/`, not `redwood-drm/` nor the patches. Fixed: the hash covers `air/*`, `redwood-drm/*`, `*.patch` in `mk-mesa.sh`, `build-gpu-z3s.sh` and `build.sh` |
 | 9 | 27 Oct | `batch4`: run 8 again on the correct library; completion records gain QoS and queue depth | backboardd a draw 30.1 → **25.1 us** (library 25.1 → **20.7**): step B together with A: 32.9 → 25.1 (−24 %), library 27.9 → 20.7 (−26 %) |
 | 10 | 27 Oct | `batch5`: repeat of 9 plus item 5's next layer recorded | a draw **26.6 us** (library 21.8): run 9 holds within the floor. chronod: a 5130 ms completion with **0 completions ahead** on its queue, committed at QoS 0 (unspecified), run at 0x15 → it waits for a *thread*, not for work. mediaserverd: `kernelHomographySolver` translates; new refusals: texture view not implemented, intrinsic `air.is_null_texture_2d`, a dispatch `kGP7x1_4cf_1` reads texture 0 with 2 textures bound |
 | 11 | 27 Oct | `batch6`: kernel records a Metal client's suspend/resume (`task_pidsuspend`/`pidresume`, `task_suspend_internal`/`resume_internal` → `DEV client suspended/resumed`) | chronod is **not suspended**: a 3063 ms completion and no chronod suspend record (the only one in the run is CollectionsPoster). Found while reading the record's code: its "queued" interval also held the commit's bookkeeping and any scheduled handlers run inline, so it did not yet say *where* the time went → split |

@@ -40,7 +40,7 @@ struct payload_entry { char name[16]; uint32_t size; uint32_t reserved; };
 #define RESIDENT_RD_RESERVE 0x30000000ULL         /* RAM that must remain for the kernel itself */
 #define PAGE_SIZE_MAX       0x4000ULL
 
-#define LOG_PARTITION       u"recovery"   /* y2s has no logdump: park the log in the recovery image */
+#define LOG_PARTITION       u"recovery"   /* z3s has no logdump: park the log in the recovery image */
 #define LOG_OFFSET          0x01000000ULL /* 16 MB into recovery: clear of the UEFI image (0) and the kernel (32 MB) */
 #define CHECKPOINT_SELFTEST 999
 #define PANIC_LOG_SIZE      0x80000u
@@ -178,7 +178,7 @@ str_eq(const char *a, const char *b)
  */
 static int screen_quiet;
 /*
- * y2s: once the kernel has run, the firmware's console is not to be trusted until the log is in the
+ * z3s: once the kernel has run, the firmware's console is not to be trusted until the log is in the
  * partition -- its state has been found corrupted after a run, and the first character printed then
  * took the loader down with the log unsaved (24 Oct, twice). Lines go to the log buffer only.
  */
@@ -671,17 +671,17 @@ static const struct platform platform_redwood = {
 };
 
 /*
- * Exynos 990 (Galaxy S20+ 5G): 4 Cortex-A55 in one cluster, 2 Cortex-A76 in the next, and 2
+ * Exynos 990 (Galaxy S20 Ultra 5G): 4 Cortex-A55 in one cluster, 2 Cortex-A76 in the next, and 2
  * Mongoose M5 in the third -- the MPIDRs are not core << 8, so they are given outright.
  */
-static const uint64_t platform_y2s_mpidrs[8] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x100, 0x101 };
+static const uint64_t platform_z3s_mpidrs[8] = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x100, 0x101 };
 
-static const struct platform platform_y2s = {
+static const struct platform platform_z3s = {
 	/* peripherals span 0x02000000 (IRAM) .. 0x1B000000 (DECON/clock); io_base must be non-zero. */
-	.name = "y2s", .io_base = 0x02000000, .io_size = 0x19000000,
+	.name = "z3s", .io_base = 0x02000000, .io_size = 0x19000000,
 	/* GICv2 (GIC-400): distributor and CPU interface (see osfmk/arm64/gic_v2_irq.c). */
 	.gic_dist = 0x10101000, .gic_redist = 0x10102000, .gic_v2 = 1, .uart = 0, .log_other_cpu = 1,
-	.cores = 8, .mpidrs = platform_y2s_mpidrs,
+	.cores = 8, .mpidrs = platform_z3s_mpidrs,
 	/* cores 0-3 are the Cortex-A55s (the little cluster). */
 	.small_cores = 0x0f,
 	/* the UEFI's Display Reserved window (see the x1s MemoryMapLib). VERIFY: the runtime "display ... at" line. */
@@ -701,7 +701,7 @@ static const struct platform platform_y2s = {
  */
 static const struct platform *const platforms[] = {
 	&platform_redwood,
-	&platform_y2s,
+	&platform_z3s,
 };
 
 /* ------------------------------------------------------------------------ */
@@ -741,8 +741,8 @@ enum {
 uint64_t loader_ctx[CTX_COUNT];
 
 /* set when the kernel hands back asking for Log access (CTX_REASON 3, kern.redwood_menu) */
-static int y2s_want_log_access;
-static int y2s_want_download;
+static int z3s_want_log_access;
+static int z3s_want_download;
 int loader_save_ctx(void);
 void loader_return_stub(void);
 
@@ -1695,6 +1695,7 @@ ufs_survey(void)
  * and a write is refused before that block. The identity is the whole of darwin-write.py's: the
  * same partition, named the same, of the same size, in the same place, on logical unit 0.
  */
+/* Legacy y2s darwin layout: kept for the dual-boot path, unused on a z3s that gives super to iOS. */
 #define BLOCK_WRITE_FIRST  2042368ULL                  /* darwin's blocks of 4096: past both cryptexes */
 #define BLOCK_DARWIN_FIRST 25374720ULL                 /* its first and last LBA of unit 0, as the GPT has them */
 #define BLOCK_DARWIN_LAST  30617594ULL
@@ -1851,12 +1852,12 @@ device_path_print(uint64_t unit, const efi_device_path *dp)
  * while UEFI's list is the one in the controller.
  */
 /*
- * ufshc@1d84000 ("ufs_mem") in the Xiaomi's Android device tree; on the S20+ (Exynos 990) the
+ * ufshc@1d84000 ("ufs_mem") in the Xiaomi's Android device tree; on the S20 Ultra (Exynos 990) the
  * controller is at 0x13100000 (Samsung's ufs-exynos.c, Silicium's PlatformUfsLib), where offsets
  * and lengths in a request descriptor are in bytes and a slot is cleared by writing a one.
  */
-#define HC_PA              (PLAT == &platform_y2s ? 0x13100000ULL : 0x1d84000ULL)
-#define HC_EXYNOS          (PLAT == &platform_y2s)
+#define HC_PA              (PLAT == &platform_z3s ? 0x13100000ULL : 0x1d84000ULL)
+#define HC_EXYNOS          (PLAT == &platform_z3s)
 #define HC_CAP             0x00
 #define HC_VER             0x08
 #define HC_IS              0x20
@@ -1925,7 +1926,7 @@ hc_print_state(const char *when)
  * kernel's), the list stopped, UEFI's address written back, the list started, all read back.
  */
 /*
- * The S20+: IS's UTRCS left set by the kernel's commands makes UEFI's next command keep its doorbell
+ * The S20 Ultra: IS's UTRCS left set by the kernel's commands makes UEFI's next command keep its doorbell
  * bit for ever (its driver clears IS only after the bit clears): every read and write times out.
  * Acknowledged before UEFI's driver is used again.
  */
@@ -2219,7 +2220,7 @@ block_start(int kernel_on_this_core)
 		print("ufs: the kernel's own transfer list is not offered: the controller is not as UEFI keeps it\n");
 	}
 	/*
-	 * The kernel runs on this core (the S20+): nobody serves the page while it runs, so its own
+	 * The kernel runs on this core (the S20 Ultra): nobody serves the page while it runs, so its own
 	 * driver is the only way to the storage. What it would ask the loader for -- each unit's GPT
 	 * header, to know which logical unit is which -- is read here now, unit k's into the buffer
 	 * at k * 4096 (bsd/dev/redwood_ufs.c, ufs_read_mailbox).
@@ -2751,7 +2752,7 @@ exception_handler(int64_t type, uint64_t *ctx)
 	print("loader image base %x (elr offset %x)\n", (uint64_t)(uintptr_t)&__ImageBase,
 	    ctx[EXC_CTX_ELR] - (uint64_t)(uintptr_t)&__ImageBase);
 	flush_log();
-	if (PLAT == &platform_y2s) {
+	if (PLAT == &platform_z3s) {
 		/*
 		 * Nobody resets this phone unattended, and a reset wipes the message before anyone can
 		 * read it (the log write may fail in this state too). Keep it on the screen: Vol-Down +
@@ -2999,7 +3000,7 @@ print_memory_map(void)
 }
 
 /*
- * y2s: memory for the Wi-Fi chip's DMA. Samsung's hypervisor lets the PCIe block (HSI1) reach memory
+ * z3s: memory for the Wi-Fi chip's DMA. Samsung's hypervisor lets the PCIe block (HSI1) reach memory
  * only where the kernel grants it, 64 KB at a time (HVC 0xc6000101), and z3s, which has this chip
  * working, grants only between 2 and 4 GB; the kernel's own window is above 4 GB. So a piece of it
  * there, never UEFI's again, said in /chosen as wifi-dma-base and wifi-dma-size.
@@ -3012,7 +3013,7 @@ reserve_wifi_dma(void)
 {
 	uint64_t at = 0xFFFFFFFFULL;
 
-	if (wifi_dma_size != 0 || PLAT != &platform_y2s) {
+	if (wifi_dma_size != 0 || PLAT != &platform_z3s) {
 		return;
 	}
 	if (EFI_ERROR(BS->allocate_pages(AllocateMaxAddress, EfiLoaderData, (WIFI_DMA_SIZE + 0x10000) >> 12, &at))) {
@@ -3030,7 +3031,7 @@ reserve_wifi_dma(void)
 }
 
 /*
- * y2s: memory for the display controller's DMA to read CoreAnimation's frames from (the kernel's
+ * z3s: memory for the display controller's DMA to read CoreAnimation's frames from (the kernel's
  * fb_scaler, MiniIOSurface.cpp). Its base registers hold 32 bits and nothing translates its
  * addresses, and XNU's own memory is all above 4 GB (its VM found no page below: "scanned 1
  * pages", 25 October). So a piece below 4 GB, never UEFI's again, said in /chosen as
@@ -3048,7 +3049,7 @@ reserve_display_pool(void)
 {
 	static const uint64_t sizes[] = { 192ULL << 20, 128ULL << 20, 64ULL << 20 };
 
-	if (display_pool_size != 0 || PLAT != &platform_y2s) {
+	if (display_pool_size != 0 || PLAT != &platform_z3s) {
 		return;
 	}
 	for (unsigned i = 0; i < sizeof(sizes) / sizeof(sizes[0]); i++) {
@@ -3826,7 +3827,7 @@ run_kernel(int have_checkpoint, uint64_t checkpoint)
 		 * is in .text, which the firmware maps read-only: not written from here, it is 0 in the image) */
 		flush_dcache((uint64_t)(uintptr_t)&kernel_cpu_trampoline,
 		    (uint64_t)(uintptr_t)kernel_cpu_resume_data + sizeof(uint64_t) * 17);
-		console_suspect = PLAT == &platform_y2s;
+		console_suspect = PLAT == &platform_z3s;
 		if (checkpoint == CHECKPOINT_SELFTEST) {
 			/* Do not enter the kernel at all: exercise only the return path. */
 			jump_to_kernel((uint64_t)(uintptr_t)&loader_return_stub, 0);
@@ -3912,9 +3913,9 @@ run_kernel(int have_checkpoint, uint64_t checkpoint)
 	uint64_t reason = loader_ctx[CTX_REASON];
 
 	if (reason == 3) {
-		y2s_want_log_access = 1;
+		z3s_want_log_access = 1;
 	} else if (reason == 4) {
-		y2s_want_download = 1;      /* the kernel asked for Download Mode */
+		z3s_want_download = 1;      /* the kernel asked for Download Mode */
 	}
 	if (checkpoint == CHECKPOINT_SELFTEST) {
 		print("return-path self test passed\n");
@@ -4072,7 +4073,7 @@ usb_wait(uint8_t endpoint)
 }
 
 static int usb_rx_queued;       /* usb_poll_command() has left the receive for the next command with the controller */
-static struct efi_usbfn_io *USBFN;      /* y2s: the transport (see the boot menu's section) */
+static struct efi_usbfn_io *USBFN;      /* z3s: the transport (see the boot menu's section) */
 static int64_t ufn_rx(uint8_t *buf, uint64_t len);
 static int64_t ufn_tx(const uint8_t *data, uint64_t len);
 static uint8_t *stage_buf;
@@ -4423,12 +4424,12 @@ usb_command_loop(void)
 }
 
 /* ------------------------------------------------------------------------ */
-/* y2s: the boot menu, USB through EFI_USBFN_IO_PROTOCOL, Download Mode       */
+/* z3s: the boot menu, USB through EFI_USBFN_IO_PROTOCOL, Download Mode       */
 /* (PLANS/09-standalone.md)                                                  */
 
 #include "menu_font.h"
 
-#define STAGE_SIZE      (96ULL << 20)   /* stage_buf: where downloads land on y2s (a whole recovery image) */
+#define STAGE_SIZE      (96ULL << 20)   /* stage_buf: where downloads land on z3s (a whole recovery image) */
 
 /* the panel, through the firmware's framebuffer */
 static uint32_t
@@ -4541,7 +4542,7 @@ menu_draw(int selected, const char *banner, int countdown)
 
 	menu_fill(0, 0, w, (int)SCREEN.height, 0x000000, 0);
 	menu_text_center(300, "HackiOS", 10, 0xffffff);
-	menu_text_center(500, "Galaxy S20+  -  iOS 16.5", 3, 0x8e8e93);
+	menu_text_center(500, "Galaxy S20 Ultra  -  iOS 16.5", 3, 0x8e8e93);
 	if (banner != NULL && banner[0] != 0) {
 		menu_text_center(640, banner, 3, 0xffd60a);
 	}
@@ -4661,11 +4662,11 @@ menu_status(const char *title, const char *l1, const char *l2, const char *l3, c
  * PMU INFORM2[23:16] = 0x4E (a normal reboot, not into the charging screen), INFORM3 = 0x12345601
  * (SEC_RESET_REASON_DOWNLOAD), RST_STAT cleared, the software reset.
  */
-#define Y2S_PMU                 0x15860000ULL
+#define Z3S_PMU                 0x15860000ULL
 static void
 reboot_download(void)
 {
-	volatile uint32_t *pmu = (volatile uint32_t *)(uintptr_t)Y2S_PMU;
+	volatile uint32_t *pmu = (volatile uint32_t *)(uintptr_t)Z3S_PMU;
 	uint32_t v = pmu[0x808 / 4];
 
 	v &= ~(0xffu << 16);
@@ -4683,7 +4684,7 @@ reboot_download(void)
 static void
 power_off(void)
 {
-	volatile uint32_t *pmu = (volatile uint32_t *)(uintptr_t)Y2S_PMU;
+	volatile uint32_t *pmu = (volatile uint32_t *)(uintptr_t)Z3S_PMU;
 
 	ST->rt->reset_system(2 /* EfiResetShutdown */, 0, 0, NULL);
 	/* (sec_power_off: PS_HOLD low; with a charger in, S-Boot comes back to the charging screen) */
@@ -4917,7 +4918,7 @@ stage_last_log(void)
 
 /*
  * What was downloaded, into a partition at an offset (bytes, a multiple of the block): only where this port
- * keeps its own things -- recovery, boot, super's tail (system.apfs at 0x184B00000) -- never the bootloaders,
+ * keeps its own things -- recovery, boot, super (system.apfs at its start on z3s) -- never the bootloaders,
  * EFS or Samsung's other partitions. Read back and compared.
  */
 static const char *
@@ -4927,8 +4928,8 @@ stage_write(const char *part, uint64_t off)
 	uint64_t bs, size, len = stage_len, done = 0;
 	uint8_t *src = stage_buf;
 
-	if (!(str_eq(part, "recovery") || str_eq(part, "boot") || (str_eq(part, "super") && off >= 0x184B00000ULL))) {
-		return "refused: only recovery, boot and super from 0x184B00000";
+	if (!(str_eq(part, "recovery") || str_eq(part, "boot") || str_eq(part, "super"))) {
+		return "refused: only recovery, boot and super";
 	}
 	if (bio == NULL || bio->media == NULL || src == NULL || len == 0) {
 		return "no such partition, or nothing downloaded";
@@ -4967,7 +4968,7 @@ stage_write(const char *part, uint64_t off)
 
 /*
  * "Log access": the fastboot server until Power is pressed or the host says "oem boot". Returns 1 to boot iOS.
- * Host: ./y2s.sh ulog (oem lastlog, get_staged), ./y2s.sh uflash (stage, oem write recovery 0), oem boot.
+ * Host: ./z3s.sh ulog (oem lastlog, get_staged), ./z3s.sh uflash (stage, oem write recovery 0), oem boot.
  */
 static int
 log_access(void)
@@ -4989,8 +4990,8 @@ log_access(void)
 		return 0;
 	}
 	/* (the last log is read from the flash when the host asks for it: oem lastlog) */
-	menu_status("Log access (USB)", "Connect the phone to the Mac, then:", "./y2s.sh ulog    the last log",
-	    "./y2s.sh uflash  a new build", "./y2s.sh uboot   boot iOS");
+	menu_status("Log access (USB)", "Connect the phone to the Mac, then:", "./z3s.sh ulog    the last log",
+	    "./z3s.sh uflash  a new build", "./z3s.sh uboot   boot iOS");
 	ufn_leave = 0;
 	usb_boot_asked = 0;
 	while (!ufn_leave && !usb_boot_asked) {
@@ -5021,11 +5022,11 @@ log_access(void)
 }
 
 /*
- * The y2s loader: the menu at power-on, and again whenever iOS comes back. "Boot iOS" by itself after
+ * The z3s loader: the menu at power-on, and again whenever iOS comes back. "Boot iOS" by itself after
  * 3 s at power-on; after a run, the menu waits.
  */
 static void
-y2s_menu_loop(void)
+z3s_menu_loop(void)
 {
 	const char *banner = "";
 	int wait = 3;
@@ -5033,13 +5034,13 @@ y2s_menu_loop(void)
 	for (;;) {
 		int choice;
 
-		if (y2s_want_download) {
-			y2s_want_download = 0;
+		if (z3s_want_download) {
+			z3s_want_download = 0;
 			menu_status("Download Mode", "the kernel asked for it", NULL, NULL, NULL);
 			reboot_download();
 		}
-		if (y2s_want_log_access) {
-			y2s_want_log_access = 0;
+		if (z3s_want_log_access) {
+			z3s_want_log_access = 0;
 			choice = MENU_USB;
 			wait = 0;
 			banner = "the kernel asked for Log access";
@@ -5211,9 +5212,9 @@ efi_main(efi_handle image, efi_system_table *st)
 		usb_command_loop();
 	}
 
-	/* y2s: the boot menu (Boot iOS by itself after 3 s, Log access over USB, Download Mode) */
-	if (have_payload && PLAT == &platform_y2s && SCREEN.base != 0 && !pi.usb_mode) {
-		y2s_menu_loop();
+	/* z3s: the boot menu (Boot iOS by itself after 3 s, Log access over USB, Download Mode) */
+	if (have_payload && PLAT == &platform_z3s && SCREEN.base != 0 && !pi.usb_mode) {
+		z3s_menu_loop();
 	}
 	/* One-shot mode: run the kernel that came with the image, then reset. */
 	if (have_payload) {

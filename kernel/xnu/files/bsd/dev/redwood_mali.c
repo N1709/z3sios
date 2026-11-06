@@ -1,5 +1,5 @@
 /*
- * The Galaxy S20+'s (y2s, Exynos 990) GPU, a Mali-G77 MP11 (Valhall, job manager): the hardware
+ * The Galaxy S20 Ultra's (z3s, Exynos 990) GPU, a Mali-G77 MP11 (Valhall, job manager): the hardware
  * half of its driver. iokit/Kernel/RedwoodMali.cpp gives it to programs with the interface of
  * Linux's panfrost; bsd/sys/redwood_mali.h is what is between the two.
  *

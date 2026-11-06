@@ -1,38 +1,38 @@
 #!/bin/bash
-# y2s.sh: build, pack, flash, and read back the kernel log for the Galaxy S20+ (y2s).
+# z3s.sh: build, pack, flash, and read back the kernel log for the Galaxy S20 Ultra (z3s).
 #
-#   ./y2s.sh kernel                 build XNU (GIC_V2 exported), copy to out/mach.y2s, export xnu/
-#   ./y2s.sh payload "<cmdline>"    rebuild the XNUP payload with this cmdline, splice it into out/y2s-embed.img
-#   ./y2s.sh cmdline                print the cmdline currently in out/y2s-embed.img
-#   ./y2s.sh pack                   out/y2s-recovery.img = embed@0 + kernel@32 MiB + root.apfs@48 MiB
-#   ./y2s.sh flash                  adb: write out/y2s-recovery.img to recovery, verify, reboot into it
-#   ./y2s.sh log                    adb: pull the 8 MiB log at recovery+16 MiB, print it (also ../xnulog.txt)
-#   ./y2s.sh mlog                   the last run's Metal and display lines only (USB if the phone is
+#   ./z3s.sh kernel                 build XNU (GIC_V2 exported), copy to out/mach.z3s, export xnu/
+#   ./z3s.sh payload "<cmdline>"    rebuild the XNUP payload with this cmdline, splice it into out/z3s-embed.img
+#   ./z3s.sh cmdline                print the cmdline currently in out/z3s-embed.img
+#   ./z3s.sh pack                   out/z3s-recovery.img = embed@0 + kernel@32 MiB + root.apfs@48 MiB
+#   ./z3s.sh flash                  adb: write out/z3s-recovery.img to recovery, verify, reboot into it
+#   ./z3s.sh log                    adb: pull the 8 MiB log at recovery+16 MiB, print it (also ../xnulog.txt)
+#   ./z3s.sh mlog                   the last run's Metal and display lines only (USB if the phone is
 #                                   in Log access, else Wi-Fi), so a log can be read for those alone
 #
 # mali2metal (PLANS/10-mali2metal.md), with no key press while iOS is up on Wi-Fi:
-#   ./y2s.sh loop [label]           payload (m2m.cmdline) + pack; the phone hands itself to Log access
+#   ./z3s.sh loop [label]           payload (m2m.cmdline) + pack; the phone hands itself to Log access
 #                                   (rwlogd /menu); uflash; cold restart; wait for iOS; the standard tour;
 #                                   the Metal channel saved to logs/m2m/ and reported against the last run.
 #                                   M2M_VIA=download: through Download Mode and heimdall instead (for a
 #                                   phone whose kernel predates the fixed kern.redwood_menu). M2M_PROF=1: with
 #                                   backboardd's sampling profiler over the tour (tools/prof-symbolize.py RUN)
-#   ./y2s.sh m2m <fetch|report|tour|wait-tour|tail> ...   tools/m2m.py on its own
-#   ./y2s.sh ship "<cmdline>"       payload + pack + flash
+#   ./z3s.sh m2m <fetch|report|tour|wait-tour|tail> ...   tools/m2m.py on its own
+#   ./z3s.sh ship "<cmdline>"       payload + pack + flash
 #
 # Without Android (PLANS/09-standalone.md): the loader's menu -> "Log access (USB)", then
-#   ./y2s.sh ulog                   the last run's log over USB (also ../xnulog.txt)
-#   ./y2s.sh uflash                 out/y2s-recovery.img to recovery over USB, read back by the phone
+#   ./z3s.sh ulog                   the last run's log over USB (also ../xnulog.txt)
+#   ./z3s.sh uflash                 out/z3s-recovery.img to recovery over USB, read back by the phone
 #                                   (and the boot image to `boot` too once `standalone` was done)
-#   ./y2s.sh uboot                  leave Log access and boot iOS
-#   ./y2s.sh hflash                 from Samsung's Download Mode: heimdall writes recovery (and boot)
+#   ./z3s.sh uboot                  leave Log access and boot iOS
+#   ./z3s.sh hflash                 from Samsung's Download Mode: heimdall writes recovery (and boot)
 #
-# While iOS runs, over Wi-Fi (rwlogd on the phone, port 8080, Bonjour "HackiOS"; or Y2S_IP=address):
-#   ./y2s.sh wlog                   the kernel's log so far (also ../xnulog.txt)
-#   ./y2s.sh wtail                  follow it live (Ctrl-C ends)
-#   ./y2s.sh hlogo                  (Download Mode) the boot splash: the Apple logo instead of Samsung's
-#   ./y2s.sh standalone             (once, asks first) the boot image into `boot`: power-on goes to the
-#                                   menu, Android no longer boots (back: heimdall --BOOT ../backup-y2s/boot.img)
+# While iOS runs, over Wi-Fi (rwlogd on the phone, port 8080, Bonjour "HackiOS"; or Z3S_IP=address):
+#   ./z3s.sh wlog                   the kernel's log so far (also ../xnulog.txt)
+#   ./z3s.sh wtail                  follow it live (Ctrl-C ends)
+#   ./z3s.sh hlogo                  (Download Mode) the boot splash: the Apple logo instead of Samsung's
+#   ./z3s.sh standalone             (once, asks first) the boot image into `boot`: power-on goes to the
+#                                   menu, Android no longer boots (back: heimdall --BOOT ../backup-z3s/boot.img)
 #
 # Without a cmdline, payload and ship use DEFAULT_CMDLINE: the configuration measured best so far
 # (PLANS/01-performance.md). Never give cpus= and cpumask= together: XNU panics.
@@ -41,14 +41,20 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-EMBED=out/y2s-embed.img
-PAYLOAD=out/y2s-payload.bin
+EMBED=out/z3s-embed.img
+PAYLOAD=out/z3s-payload.bin
 PAYLOAD_AT=$((0x100870))                # FD at page + 112 = 0x870, payload at FD + 0x100000
 PAYLOAD_MAX=$((0x80000))
+# Where the 2.32 GiB iOS root (system.apfs) lives on the flash. The default gives super to iOS
+# (Android's logical partitions are gone); a dual-boot layout overrides these with its darwin
+# partition and offset. See docs/plans/09-standalone.md.
+ROOT_PART=${ROOT_PART:-super}
+ROOT_OFF=${ROOT_OFF:-0}
+ROOT_SIZE=${ROOT_SIZE:-948c0000}
 DEFAULT_CMDLINE="touch_ts=1 bms=1 mali=1 cpumask=0x3f fb_threads=6"   # 4x A55 + 2x A76; the M5s idle at 266 MHz (no DVFS yet)
 KERNEL_BUILD=xnu-src/xnu-8796.121.2/BUILD/obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837
 
-die() { echo "y2s.sh: $*" >&2; exit 1; }
+die() { echo "z3s.sh: $*" >&2; exit 1; }
 
 cmd_kernel() {
 	set +u
@@ -62,10 +68,10 @@ cmd_kernel() {
 	fi
 	[ "$KERNEL_BUILD" -nt out/.kernel-start ] || echo "kernel: nothing changed, not relinked"
 	strings "$KERNEL_BUILD" | grep 'gic: v2' > /dev/null || die "kernel is not GICv2 (GIC_V2 not exported?)"
-	cp "$KERNEL_BUILD" out/mach.y2s
-	[ "$(wc -c < out/mach.y2s)" -le $((0x1000000)) ] || die "kernel larger than its 16 MiB slot"
+	cp "$KERNEL_BUILD" out/mach.z3s
+	[ "$(wc -c < out/mach.z3s)" -le $((0x1000000)) ] || die "kernel larger than its 16 MiB slot"
 	xnu/export.sh
-	echo "kernel: out/mach.y2s ($(wc -c < out/mach.y2s) bytes)"
+	echo "kernel: out/mach.z3s ($(wc -c < out/mach.z3s) bytes)"
 }
 
 cmd_payload() {
@@ -80,7 +86,7 @@ cmd_payload() {
 	rsize=$(printf '%x' "$(wc -c < userland/root.apfs)")     # (root.apfs grows with GL=test: libOSMesa)
 	python3 xnuloader/mkpayload.py -o "$PAYLOAD" loader.efi=xnuloader/loader.efi \
 		--kpart recovery --koff 2000000 --rpart recovery --roff 3000000 --rsize "$rsize" \
-		--rdpart super --rdoff 184b00000 --rdsize 948c0000 ${cmdline:+--cmdline "$cmdline"}
+		--rdpart "$ROOT_PART" --rdoff "$ROOT_OFF" --rdsize "$ROOT_SIZE" ${cmdline:+--cmdline "$cmdline"}
 	python3 - "$EMBED" "$PAYLOAD" "$PAYLOAD_AT" "$PAYLOAD_MAX" <<'PY'
 import sys
 embed, payload, at, limit = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
@@ -114,9 +120,9 @@ PY
 cmd_pack() {
 	python3 - "$EMBED" "$PAYLOAD_AT" <<'PY'
 import struct, sys
-ker = open('out/mach.y2s', 'rb').read()
+ker = open('out/mach.z3s', 'rb').read()
 rd = open('userland/root.apfs', 'rb').read()
-img = open('out/y2s-embed.img', 'rb').read()
+img = open('out/z3s-embed.img', 'rb').read()
 assert len(img) <= 0x1000000 and len(ker) <= 0x1000000
 assert 0x3000000 + len(rd) <= 69009408, 'root.apfs does not fit in recovery (65.8 MiB)'
 # The loader reads exactly the payload's rsize bytes of root.apfs: a rebuilt image of another size
@@ -132,14 +138,14 @@ while True:
         rsize = int(img[i + 24:i + 24 + size].rstrip(b'\0'), 16)
     i += 24 + (size + 15) // 16 * 16
 if rsize != len(rd):
-    sys.exit('y2s.sh: pack: the payload says root.apfs is %s bytes and it is %d: run '
-             '`./y2s.sh payload "<cmdline>"` again first' % (rsize, len(rd)))
+    sys.exit('z3s.sh: pack: the payload says root.apfs is %s bytes and it is %d: run '
+             '`./z3s.sh payload "<cmdline>"` again first' % (rsize, len(rd)))
 out = bytearray(max(0x2000000 + len(ker), 0x3000000 + len(rd)))
 out[0:len(img)] = img
 out[0x2000000:0x2000000 + len(ker)] = ker
 out[0x3000000:0x3000000 + len(rd)] = rd
-open('out/y2s-recovery.img', 'wb').write(out)
-print('pack: out/y2s-recovery.img (%d bytes)' % len(out))
+open('out/z3s-recovery.img', 'wb').write(out)
+print('pack: out/z3s-recovery.img (%d bytes)' % len(out))
 PY
 }
 
@@ -152,12 +158,12 @@ adb_root() {
 
 cmd_flash() {
 	adb_root
-	adb push out/y2s-recovery.img /data/local/tmp/r.img
+	adb push out/z3s-recovery.img /data/local/tmp/r.img
 	adb shell 'dd if=/data/local/tmp/r.img of=/dev/block/by-name/recovery bs=1M 2>/dev/null && sync'
 	local size there here
-	size=$(wc -c < out/y2s-recovery.img)
+	size=$(wc -c < out/z3s-recovery.img)
 	there=$(adb shell "head -c $size /dev/block/by-name/recovery | md5sum" | cut -d' ' -f1)
-	here=$(md5 -q out/y2s-recovery.img)
+	here=$(md5 -q out/z3s-recovery.img)
 	[ "$there" = "$here" ] || die "verify failed: phone $there, image $here"
 	echo "flash: verified ($here)"
 	adb reboot recovery
@@ -200,7 +206,7 @@ cmd_uflash() {
 	fb_wait
 	# in two pieces around the log (16..32 MB), so that flashing keeps the last run's log
 	python3 -c "
-d = open('out/y2s-recovery.img', 'rb').read()
+d = open('out/z3s-recovery.img', 'rb').read()
 open('out/.uflash-head', 'wb').write(d[:0x1000000])
 open('out/.uflash-tail', 'wb').write(d[0x2000000:])"
 	"$FASTBOOT" stage out/.uflash-head > /dev/null 2>&1 || die "stage failed"
@@ -210,9 +216,9 @@ open('out/.uflash-tail', 'wb').write(d[0x2000000:])"
 	out=$("$FASTBOOT" oem write recovery 2000000 2>&1)
 	echo "$out" | grep -q "written and read back" || die "recovery (kernel, root): $out"
 	rm -f out/.uflash-head out/.uflash-tail
-	echo "uflash: recovery written and read back by the phone, the last log kept ($(md5 -q out/y2s-recovery.img))"
+	echo "uflash: recovery written and read back by the phone, the last log kept ($(md5 -q out/z3s-recovery.img))"
 	if [ -f out/.standalone ]; then
-		"$FASTBOOT" stage out/y2s-embed.img > /dev/null 2>&1 || die "stage failed"
+		"$FASTBOOT" stage out/z3s-embed.img > /dev/null 2>&1 || die "stage failed"
 		out=$("$FASTBOOT" oem write boot 0 2>&1)
 		echo "$out" | grep -q "written and read back" || die "boot: $out"
 		echo "uflash: boot written and read back"
@@ -229,7 +235,7 @@ cmd_mlog() {
 	if "$FASTBOOT" devices 2>/dev/null | grep -q fastboot; then
 		cmd_ulog > /dev/null || die "oem lastlog failed"
 	else
-		cmd_wlog > /dev/null || die "no log: put the phone in Log access, or have iOS up on Wi-Fi (Y2S_IP=...)"
+		cmd_wlog > /dev/null || die "no log: put the phone in Log access, or have iOS up on Wi-Fi (Z3S_IP=...)"
 	fi
 	metal_lines < ../xnulog.txt
 }
@@ -275,11 +281,11 @@ cmd_loop() {
 		echo "loop: asked $host for Download Mode; waiting for the bootloader"
 		sleep 12
 		for i in 1 2 3 4 5 6 7 8; do
-			cmd_hflash > /tmp/y2s-hflash.log 2>&1 && break
-			[ "$i" = 8 ] && { tail -3 /tmp/y2s-hflash.log; die "the phone did not appear in Download Mode"; }
+			cmd_hflash > /tmp/z3s-hflash.log 2>&1 && break
+			[ "$i" = 8 ] && { tail -3 /tmp/z3s-hflash.log; die "the phone did not appear in Download Mode"; }
 			sleep 8
 		done
-		echo "loop: flashed over Download Mode ($(md5 -q out/y2s-recovery.img)); the phone restarts by itself"
+		echo "loop: flashed over Download Mode ($(md5 -q out/z3s-recovery.img)); the phone restarts by itself"
 	else
 		if ! "$FASTBOOT" devices 2>/dev/null | grep -q fastboot; then
 			curl -sf --max-time 10 "http://$host:8080/menu?to=1" > /dev/null 2>&1 ||
@@ -290,7 +296,7 @@ cmd_loop() {
 		cmd_ureboot
 	fi
 	echo "loop: waiting for iOS on Wi-Fi"
-	wait_ios "$host" 300 || die "iOS did not come up on Wi-Fi in 5 minutes: put the phone in Log access and ./y2s.sh ulog"
+	wait_ios "$host" 300 || die "iOS did not come up on Wi-Fi in 5 minutes: put the phone in Log access and ./z3s.sh ulog"
 	echo "loop: iOS is up; 45 s for SpringBoard to settle, then the tour"
 	sleep 45
 	# M2M_PROF=1: backboardd's sampling profiler over the whole tour (its report comes after "prof: end")
@@ -311,13 +317,13 @@ cmd_uboot() {
 }
 cmd_hflash() {
 	if [ -f out/.standalone ]; then
-		"$HEIMDALL" flash --RECOVERY out/y2s-recovery.img --BOOT out/y2s-embed.img --stdout-errors
+		"$HEIMDALL" flash --RECOVERY out/z3s-recovery.img --BOOT out/z3s-embed.img --stdout-errors
 	else
-		"$HEIMDALL" flash --RECOVERY out/y2s-recovery.img --stdout-errors
+		"$HEIMDALL" flash --RECOVERY out/z3s-recovery.img --stdout-errors
 	fi
 }
 # the boot splash Samsung's bootloader shows (up_param's logo.jpg) as the white Apple logo on black
-# (out/up_param-apple.img: the backup's tar with only logo.jpg replaced). Undo: --UP_PARAM ../backup-y2s/up_param.img
+# (out/up_param-apple.img: the backup's tar with only logo.jpg replaced). Undo: --UP_PARAM ../backup-z3s/up_param.img
 # a cold restart from Log access: the new loader and its command line (uflash), then the menu boots iOS by itself
 cmd_ureboot() {
 	fb_wait
@@ -331,12 +337,12 @@ cmd_hlogo() {
 cmd_standalone() {
 	echo "This writes the HackiOS boot image into the phone's \`boot\` partition: every power-on goes to"
 	echo "the HackiOS menu and Android no longer starts (its data is untouched)."
-	echo "Undo: Download Mode, then  $HEIMDALL flash --BOOT ../backup-y2s/boot.img"
+	echo "Undo: Download Mode, then  $HEIMDALL flash --BOOT ../backup-z3s/boot.img"
 	printf "Type yes to go on: "
 	read -r answer
 	[ "$answer" = yes ] || die "nothing written"
 	fb_wait
-	"$FASTBOOT" stage out/y2s-embed.img > /dev/null 2>&1 || die "stage failed"
+	"$FASTBOOT" stage out/z3s-embed.img > /dev/null 2>&1 || die "stage failed"
 	out=$("$FASTBOOT" oem write boot 0 2>&1)
 	echo "$out" | grep -q "written and read back" || die "boot: $out"
 	touch out/.standalone
@@ -344,14 +350,14 @@ cmd_standalone() {
 }
 phone_host() {
 	local host
-	if [ -n "${Y2S_IP:-}" ]; then
-		echo "$Y2S_IP"
+	if [ -n "${Z3S_IP:-}" ]; then
+		echo "$Z3S_IP"
 		return
 	fi
 	# Bonjour: "HackiOS._http._tcp" -> "... can be reached at NAME.local.:8080"
 	host=$( (dns-sd -L HackiOS _http._tcp local & sleep 4; kill $! 2>/dev/null) 2>/dev/null |
 		sed -n 's/.*can be reached at \([^:]*\)\.:8080.*/\1/p' | head -1)
-	[ -n "$host" ] || die "the phone is not found over Bonjour: is iOS up and on Wi-Fi? (or set Y2S_IP)"
+	[ -n "$host" ] || die "the phone is not found over Bonjour: is iOS up and on Wi-Fi? (or set Z3S_IP)"
 	echo "$host"
 }
 cmd_wlog() {
@@ -365,10 +371,10 @@ cmd_wtail() {
 	host=$(phone_host)
 	echo "== following http://$host:8080 (Ctrl-C ends) =="
 	while :; do
-		if curl -sf --max-time 20 -D /tmp/y2s-wtail.h "http://$host:8080/tail?log=$lt&dmesg=$dt" -o /tmp/y2s-wtail.b; then
-			nl=$(sed -n 's/^X-Log-Total: \([0-9]*\).*/\1/p' /tmp/y2s-wtail.h | tr -d '\r')
-			nd=$(sed -n 's/^X-Dmesg-Total: \([0-9]*\).*/\1/p' /tmp/y2s-wtail.h | tr -d '\r')
-			if [ "$first" = 1 ]; then tail -c 4000 /tmp/y2s-wtail.b; first=0; else cat /tmp/y2s-wtail.b; fi
+		if curl -sf --max-time 20 -D /tmp/z3s-wtail.h "http://$host:8080/tail?log=$lt&dmesg=$dt" -o /tmp/z3s-wtail.b; then
+			nl=$(sed -n 's/^X-Log-Total: \([0-9]*\).*/\1/p' /tmp/z3s-wtail.h | tr -d '\r')
+			nd=$(sed -n 's/^X-Dmesg-Total: \([0-9]*\).*/\1/p' /tmp/z3s-wtail.h | tr -d '\r')
+			if [ "$first" = 1 ]; then tail -c 4000 /tmp/z3s-wtail.b; first=0; else cat /tmp/z3s-wtail.b; fi
 			lt=${nl:-$lt}
 			dt=${nd:-$dt}
 		fi

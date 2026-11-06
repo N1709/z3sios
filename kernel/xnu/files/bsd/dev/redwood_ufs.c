@@ -85,15 +85,15 @@ extern void FlushPoC_DcacheRegion(vm_offset_t va, size_t length);   /* osfmk/arm
 #define UFS_DARWIN_BLOCKS  5242875ULL
 
 /*
- * The S20+ (PLANS/09-standalone.md, P6): userdata -- Android's data partition, given up for it -- is
+ * The S20 Ultra (PLANS/09-standalone.md, P6): userdata -- Android's data partition, given up for it -- is
  * iOS's data volume, an HFS+ (bsd/hfs) mounted on /private/var, and the one partition that takes
- * writes, all of it and nothing else. It must be the one this phone has: LUN 0, from LBA 2850304,
- * 28382208 blocks of 4096. (UFS_Y2S_STORE_*: var_store's two slots in it, from before.)
+ * writes, all of it and nothing else. Unlike the y2s snapshot this is not pinned to one ROM's GPT:
+ * the partition is found by name on LUN 0 and its start and size are taken from the table the
+ * loader published, so a stock or ArtisanROM layout both work. The whole partition is the volume.
+ * (UFS_Z3S_STORE_*: var_store's two slots in it, from before.)
  */
-#define UFS_Y2S_DATA_FIRST   2850304ULL
-#define UFS_Y2S_DATA_BLOCKS  28382208ULL
-#define UFS_Y2S_STORE_FIRST  16384ULL                  /* the partition's blocks: 64 MiB in */
-#define UFS_Y2S_STORE_BLOCKS 1048576ULL                /* 4 GiB */
+#define UFS_Z3S_STORE_FIRST  16384ULL                  /* the partition's blocks: 64 MiB in */
+#define UFS_Z3S_STORE_BLOCKS 1048576ULL                /* 4 GiB */
 
 struct loader_block_part {
 	char name[36];
@@ -186,7 +186,7 @@ static uint32_t ufs_native_luns;                /* how many units are mapped (LU
 static volatile bool ufs_native_on;
 static uint64_t ufs_native_fallbacks, ufs_mailbox_refused;
 /*
- * The S20+: this kernel runs on the loader's own core, so nothing answers the page; this kernel's
+ * The S20 Ultra: this kernel runs on the loader's own core, so nothing answers the page; this kernel's
  * own driver is the only way to the storage, and the one thing it would have asked the loader for
  * -- each unit's GPT header, block 1 -- the loader read before the start into its buffer, unit k's
  * at k * 4096.
@@ -253,7 +253,7 @@ static int ufs_write_part = -1;
 static volatile bool ufs_write_busy;            /* a write of ours has this kernel's list out: not a failure */
 static bool ufs_write_out, ufs_write_was_native;        /* the list is out for writing, and was in before */
 static uint64_t ufs_writes, ufs_write_bytes, ufs_write_errors, ufs_write_refused;
-/* the partition's blocks a write may go to: [first, end) (darwin: past what the build writes; the S20+: the store) */
+/* the partition's blocks a write may go to: [first, end) (darwin: past what the build writes; the S20 Ultra: the store) */
 static uint64_t ufs_write_first = UFS_WRITE_FIRST, ufs_write_end = ~0ULL;
 static uint64_t ufs_write_verify_failed;
 
@@ -646,7 +646,7 @@ ufs_write(uint32_t part, uint64_t offset, const uint8_t *src, uint64_t len)
 	}
 	if (ufs_native_only) {
 		/*
-		 * The S20+: through this kernel's own driver, a bufferful at a time, each read back and
+		 * The S20 Ultra: through this kernel's own driver, a bufferful at a time, each read back and
 		 * compared before the next -- the controller's whitelist allows only the store's window.
 		 */
 		uint8_t *back = kalloc_data(ufs_buffer_size, Z_WAITOK);
@@ -728,7 +728,7 @@ ufs_write(uint32_t part, uint64_t offset, const uint8_t *src, uint64_t len)
 }
 
 /*
- * The S20+'s data volume (HFS+ on userdata): whole blocks straight through this kernel's own driver, as a
+ * The S20 Ultra's data volume (HFS+ on userdata): whole blocks straight through this kernel's own driver, as a
  * file system's buffers come -- its journal, and SYNCHRONIZE CACHE at a transaction's end, are what keep
  * it whole; the whitelist in redwood_ufshc.c allows no block outside userdata.
  */
@@ -796,7 +796,7 @@ ufs_open(dev_t dev, int flags, __unused int devtype, __unused proc_t p)
 		return ENXIO;
 	}
 	if ((flags & FWRITE) && !(ufs_native_only && ufs_write_part >= 0 && (uint32_t)minor(dev) == (uint32_t)ufs_write_part)) {
-		return EROFS;           /* a block device of this driver never writes -- but the S20+'s data volume */
+		return EROFS;           /* a block device of this driver never writes -- but the S20 Ultra's data volume */
 	}
 	return 0;
 }
@@ -842,7 +842,7 @@ ufs_strategy(buf_t bp)
 		return;
 	}
 	if (!(buf_flags(bp) & B_READ) && !(ufs_native_only && ufs_write_part >= 0 && part == (uint32_t)ufs_write_part)) {
-		buf_seterror(bp, EROFS);         /* this device never writes (but the S20+'s data volume) */
+		buf_seterror(bp, EROFS);         /* this device never writes (but the S20 Ultra's data volume) */
 		buf_biodone(bp);
 		return;
 	}
@@ -913,7 +913,7 @@ ufs_ioctl(dev_t dev, u_long cmd, caddr_t data, __unused int fflag, __unused proc
 		*(uint64_t *)data = ufs_part_bytes(part) / ufs_bsize[part];
 		return 0;
 	case DKIOCISWRITABLE:
-		/* the block device, which is what a filesystem would ask: only the S20+'s data volume */
+		/* the block device, which is what a filesystem would ask: only the S20 Ultra's data volume */
 		*(uint32_t *)data = ufs_native_only && ufs_write_part >= 0 && part == (uint32_t)ufs_write_part;
 		return 0;
 	case DKIOCGETMAXBLOCKCOUNTREAD:
@@ -1073,7 +1073,7 @@ static const struct cdevsw ufs_cdevsw = {
  */
 /*
  * Before the kernel gives the phone back to the loader (the keys' way out): every writable local file
- * system -- the S20+'s data volume, HFS+ on userdata -- synced and waited for (its journal and its
+ * system -- the S20 Ultra's data volume, HFS+ on userdata -- synced and waited for (its journal and its
  * dirty files on the flash), then the unit's write cache flushed. The journal would have the volume
  * whole either way; this keeps what was written last as well.
  */
@@ -1306,7 +1306,7 @@ ufs_native_map(bool all_units)
 		if (e->block_size != 4096 || ufs_read_mailbox(i, 4096, theirs + n * 4096, 4096) != 0 ||
 		    memcmp(theirs + n * 4096, "EFI PART", 8) != 0) {
 			if (ufs_native_only && e->unit != 0) {
-				/* (the S20+'s LUNs 1, 2 and 4 have no GPT, and no partitions: nothing to read there) */
+				/* (the S20 Ultra's LUNs 1, 2 and 4 have no GPT, and no partitions: nothing to read there) */
 				ufs_log("ufs: native: %s: no GPT header to know it by: no read goes to it\n", e->name);
 				continue;
 			}
@@ -1633,10 +1633,10 @@ ufs_native_bench(void)
 }
 
 /*
- * ufs_native_md5=1 (the S20+, PLANS/09-standalone.md P5): MD5 of what this kernel's own driver reads,
- * in a thread of its own, to be compared on the computer with backup-y2s/MD5SUMS (partitions nothing
- * writes, and logical unit 3 whole: lun-sdd.img) and with userland/system.apfs, which is in super
- * at 0x184b00000.
+ * ufs_native_md5=1 (the S20 Ultra, PLANS/09-standalone.md P5): MD5 of what this kernel's own driver reads,
+ * in a thread of its own, to be compared on the computer with backup-z3s/MD5SUMS (partitions nothing
+ * writes, and logical unit 3 whole: lun-sdd.img) and with userland/system.apfs, which is at
+ * super+0 (the z3s layout gives the whole super partition to iOS).
  */
 static void
 ufs_md5_one(const char *name, uint64_t offset, uint64_t len, uint8_t *buf, uint64_t chunk)
@@ -1691,11 +1691,11 @@ ufs_md5_test(__unused void *arg, __unused wait_result_t wr)
 		return;
 	}
 	IOSleep(5000);
-	ufs_log("ufs: md5: what this kernel's own driver reads, to compare with backup-y2s/MD5SUMS\n");
+	ufs_log("ufs: md5: what this kernel's own driver reads, to compare with backup-z3s/MD5SUMS\n");
 	for (unsigned i = 0; i < sizeof(names) / sizeof(names[0]); i++) {
 		ufs_md5_one(names[i], 0, 0, buf, chunk);
 	}
-	ufs_md5_one("super", 0x184b00000ULL, 0x948c0000ULL, buf, chunk);
+	ufs_md5_one("super", 0, 0x948c0000ULL, buf, chunk);
 	redwood_ufs_report("after the md5 test");
 	ufs_log("ufs: md5: done\n");
 	kfree_data(buf, chunk);
@@ -1733,8 +1733,8 @@ SYSCTL_QUAD(_kern_redwood, OID_AUTO, ufs_native_fallbacks, CTLFLAG_RD | CTLFLAG_
  * ---- the root on the flash (PLANS/09-standalone.md, P5b) ----
  * ufs_root=PART:HEXOFFSET:HEXSIZE: a window of a partition as one more block device, /dev/ufs_root,
  * read only, for the kernel to mount its root from (iokit/bsddev/IOKitBSDInit.cpp, IOFindBSDRoot):
- * on the S20+ the system image the loader used to copy into memory (md0) is read where it lies,
- * super+0x184b00000. Only through this kernel's own driver: the loader serves nothing here.
+ * on the S20 Ultra the system image the loader used to copy into memory (md0) is read where it lies,
+ * super+0. Only through this kernel's own driver: the loader serves nothing here.
  */
 static uint32_t ufs_root_part = BLOCK_MAX_PARTS;
 static uint64_t ufs_root_off, ufs_root_size;
@@ -2010,7 +2010,7 @@ redwood_ufs_init(void)
 			.switched_in = (uint32_t *)&ufs_page->kernel_native.switched_in,
 			.switched_out = (uint32_t *)&ufs_page->kernel_native.switched_out,
 			.cnr_at_switch = &ufs_page->kernel_native.cnr_at_switch,
-			/* the S20+: the loader's buffer (low memory, idle while this kernel runs on its core) */
+			/* the S20 Ultra: the loader's buffer (low memory, idle while this kernel runs on its core) */
 			.data_pa = ufs_native_only ? ufs_page->buffer_pa : 0, .data_size = ufs_native_only ? ufs_buffer_size : 0,
 		};
 		uint32_t mode = check, compare = 0;
@@ -2060,32 +2060,41 @@ redwood_ufs_init(void)
 	}
 
 	/*
-	 * The S20+ with ufs_write=1: the data volume's store in userdata (UFS_Y2S_*), through this
-	 * kernel's own driver only, and only if userdata is where and what it was on this phone.
+	 * The S20 Ultra with ufs_write=1: the data volume's store in userdata, through this kernel's own
+	 * driver only. The partition is the one the GPT names "userdata" on LUN 0, of 4096-byte blocks;
+	 * its own start and size are what the write window is made from, so the driver never reaches
+	 * another partition even if this ROM laid userdata out differently from the previous one.
 	 */
 	check = 0;
 	if (ufs_native_only && PE_parse_boot_argn("ufs_write", &check, sizeof(check)) && check == 1) {
 		uint32_t i = ufs_entry("userdata");
 		const char *why = NULL;
+		uint64_t first = 0, blocks = 0;
 
 		if (i == BLOCK_MAX_PARTS) {
 			why = "there is no userdata";
 		} else if (!ufs_native_on || ufs_lun[i] != 0) {
 			why = "it is not read by this kernel's own driver, on LUN 0";
-		} else if (ufs_page->part[i].start_lba != UFS_Y2S_DATA_FIRST || ufs_page->part[i].blocks != UFS_Y2S_DATA_BLOCKS ||
-		    ufs_page->part[i].block_size != 4096) {
-			why = "it is not where, or the size, it was";
-		} else if (!ufshc_set_write_window(0, UFS_Y2S_DATA_FIRST, UFS_Y2S_DATA_BLOCKS)) {
-			why = "the driver took no window";
+		} else if (ufs_page->part[i].block_size != 4096) {
+			why = "its blocks are not 4096 bytes";
+		} else {
+			first = ufs_page->part[i].start_lba;
+			blocks = ufs_page->part[i].blocks;
+			if (blocks == 0 || first + blocks < first) {
+				why = "its start and size overflow";
+			} else if (!ufshc_set_write_window(0, first, blocks)) {
+				why = "the driver took no window";
+			}
 		}
 		if (why != NULL) {
 			ufs_log("ufs: nothing takes writes: userdata: %s\n", why);
 		} else {
 			ufs_write_part = (int)i;
 			ufs_write_first = 0;
-			ufs_write_end = UFS_Y2S_DATA_BLOCKS;
-			ufs_log("ufs: /dev/ufs_userdata and /dev/rufs_userdata take writes (iOS's data volume, %llu MB); "
-			    "everything else of the storage is read only\n", (UFS_Y2S_DATA_BLOCKS * 4096) >> 20);
+			ufs_write_end = blocks;
+			ufs_log("ufs: /dev/ufs_userdata and /dev/rufs_userdata take writes (iOS's data volume, "
+			    "LBA %llu + %llu blocks, %llu MB); everything else of the storage is read only\n",
+			    first, blocks, (blocks * 4096) >> 20);
 		}
 	}
 

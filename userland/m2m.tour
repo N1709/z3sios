@@ -1,5 +1,5 @@
 # mali2metal's standard tour (PLANS/10-mali2metal.md): installed as /redwood/etc/m2m.tour and run by rwlogd
-# on GET /tour (`./y2s.sh m2m tour`, and `./y2s.sh loop` after every boot) through /redwood/sbin/init, one
+# on GET /tour (`./z3s.sh m2m tour`, and `./z3s.sh loop` after every boot) through /redwood/sbin/init, one
 # command a line. The same gestures every run, so that two runs' records can be compared step by step.
 # Each step is a MARK record; the Metal processes' totals (SUM) come at the end; "tour done" is what the host
 # waits for. Coordinates are fractions of the screen (rwtouch), as rc.jobs.metaldiag measured them.

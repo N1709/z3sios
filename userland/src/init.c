@@ -821,7 +821,7 @@ read_whole(const char *path, char *buf, size_t size)
 }
 
 /*
- * ---- the S20+'s data volume: HFS+ on userdata (var_hfs=1; PLANS/09-standalone.md, P6) ----
+ * ---- the S20 Ultra's data volume: HFS+ on userdata (var_hfs=1; PLANS/09-standalone.md, P6) ----
  *
  * /private/var on the flash, as a phone has it: Apple's HFS+ in the kernel (bsd/hfs), a case-sensitive
  * journaled one filling the userdata partition (/dev/ufs_userdata, the only partition the kernel lets be
@@ -906,9 +906,11 @@ hfs_format(void)
 	}
 	block = kit_u32(kit + 8);
 	entries = kit_u32(kit + 12);
-	if (block != 4096 || kit_u64(kit + 16) != 116253523968ULL || 32 + (size_t)entries * 16 > (size_t)got ||
+	/* The kit is the y2s 108 GiB volume. z3s userdata is at least that large on every S20 Ultra,
+	 * so the same volume fits; it simply leaves the end of the partition unused. */
+	if (block != 4096 || kit_u64(kit + 16) < (1ULL << 30) || 32 + (size_t)entries * 16 > (size_t)got ||
 	    kit_crc(kit + 32, (size_t)got - 32) != kit_u32(kit + 24)) {
-		printf("  the format kit is not one for this phone's userdata, or is damaged\n");
+		printf("  the format kit is damaged, or not for a 4 KB HFS+ volume\n");
 		return 0;
 	}
 	zeros = mmap(NULL, 1 << 20, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
@@ -1000,7 +1002,7 @@ mount_data_volume(void)
 	}
 	there = hfs_is_there();
 	if (there < 0) {
-		printf("  %s: %s (ufs_write=1 with the S20+'s storage?)\n", HFS_RAW, strerror(errno));
+		printf("  %s: %s (ufs_write=1 with the S20 Ultra's storage?)\n", HFS_RAW, strerror(errno));
 		return 0;
 	}
 	if (!there) {

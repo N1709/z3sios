@@ -1,7 +1,7 @@
-# Commands run by the launchd job com.redwood.demo (RC_JOBS=rc.jobs.y2sperf), with RC=rc.launchd.metal,
+# Commands run by the launchd job com.redwood.demo (RC_JOBS=rc.jobs.z3sperf), with RC=rc.launchd.metal,
 # QUIET=1 and boot-args "metal=1 camtl=1 metal_profile=1 mediamtl=1 fb_te=1 fb_bl=1" (PLANS/05-metal.md).
 #
-# Where a Metal frame's time goes on the S20+, about four minutes, in labelled windows: the window
+# Where a Metal frame's time goes on the S20 Ultra, about four minutes, in labelled windows: the window
 # server's Metal driver says every 5 s how many command buffers it ran, how long -commit took and how
 # much of that was waiting for the GPU, and what compiling pipelines cost (`perf:` lines); the display
 # driver says how many frames reached the panel and what scaling them cost (`fb:` lines). Nothing else

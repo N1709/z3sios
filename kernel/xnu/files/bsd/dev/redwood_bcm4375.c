@@ -1,5 +1,5 @@
 /*
- * Wi-Fi of the Galaxy S20+ (y2s), steps W4 and W5 of PLANS/06-wireless.md, boot-arg wifi_pcie=4: the
+ * Wi-Fi of the Galaxy S20 Ultra (z3s), steps W4 and W5 of PLANS/06-wireless.md, boot-arg wifi_pcie=4: the
  * Broadcom BCM4375 B1's firmware started and spoken to, as far as a scan. redwood_exynos_pcie.c has
  * the link up and the loader's DMA pool granted to the PCIe block when this runs; this is everything
  * after: the BARs, the chip's cores, the firmware and NVRAM into its RAM, the shared area, the five

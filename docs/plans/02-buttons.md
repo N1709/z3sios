@@ -3,7 +3,7 @@
 ## Hardware (verified)
 
 From `dtbo.img` (`gpio_keys`, compatible `gpio-keys`) and the UEFI's working
-`y2sPkg/Library/KeypadDeviceLib/KeypadDeviceLib.c`:
+`z3sPkg/Library/KeypadDeviceLib/KeypadDeviceLib.c`:
 
 | Key | Pin | Linux code | Notes |
 |---|---|---|---|

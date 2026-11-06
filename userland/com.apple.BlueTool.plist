@@ -4,7 +4,7 @@
 <dict>
 	<key>Label</key>
 	<string>com.apple.BlueTool</string>
-	<!-- the S20+: Apple's BlueTool replaced (src/bluetool_stub.c): the kernel boots the BCM4375's Bluetooth
+	<!-- the S20 Ultra: Apple's BlueTool replaced (src/bluetool_stub.c): the kernel boots the BCM4375's Bluetooth
 	     (bsd/dev/redwood_exynos_bt.c); this answers bluetoothd's "boot"/"init" scripts with success -->
 	<key>ProgramArguments</key>
 	<array>

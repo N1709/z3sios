@@ -116,7 +116,7 @@ IOS_JOBS=${JOBS-"
 # (Count a QEMU run log with its duplicate lines removed: run-ios.sh prints launchd's log twice.)
 # WIFID=0 leaves it out.
 [ "${WIFID-1}" != 0 ] && IOS_JOBS="$IOS_JOBS com.apple.wifid"
-# The S20+'s Bluetooth (bsd/dev/redwood_exynos_bt.c, bt=1): bluetoothd over the kernel's control
+# The S20 Ultra's Bluetooth (bsd/dev/redwood_exynos_bt.c, bt=1): bluetoothd over the kernel's control
 # com.apple.uart.bluetooth (H4), with BlueTool's stand-in (src/bluetool_stub.c); BT=0 leaves it out.
 if [ "${BT-1}" != 0 ]; then
 	IOS_JOBS="$IOS_JOBS com.apple.bluetoothd"
@@ -176,7 +176,7 @@ cp obj/child root/bin/child
 # copies are editing at once.
 [ -f obj/var_store ] && cp obj/var_store root/bin/
 cp com.redwood.varstore.plist root/LaunchDaemons/
-# The S20+'s data volume (var_hfs=1, src/init.c): the format kit init writes into userdata at the first boot --
+# The S20 Ultra's data volume (var_hfs=1, src/init.c): the format kit init writes into userdata at the first boot --
 # the blocks of a case-sensitive journaled HFS+ the size of userdata, made by macOS's newfs_hfs
 # (tools/mk-userdata-hfs.sh, then tools/hfs-kit.py)
 [ -f hfs-kit.bin ] && cp hfs-kit.bin root/share/hfs-kit.bin
@@ -594,7 +594,7 @@ if [ -f ../fw-wifi/wpss.mdt ]; then
 	# SHARE=1: leave it out, for an image that is going to somebody else -- it is a passphrase
 	if [ -z "$SHARE" ] && [ -f ../fw-wifi/network ]; then install -m 0600 ../fw-wifi/network root/fw/network; fi
 fi
-# ... or the S20+'s Broadcom BCM4375 (bsd/dev/redwood_bcm4375.c, wifi_pcie=4), from the phone's /vendor/firmware
+# ... or the S20 Ultra's Broadcom BCM4375 (bsd/dev/redwood_bcm4375.c, wifi_pcie=4), from the phone's /vendor/firmware
 # into ../fw-wifi under these names: bcmdhd_sta.bin_b1, bcmdhd_clm.blob and the B1 NVRAMs (SEMCO's is this
 # phone's, "Y2"; Murata's for wifi_nvram=1). 1.3 MB, the vendor's and not in the repository.
 if [ -f ../fw-wifi/bcm4375-sta.bin ]; then

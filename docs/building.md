@@ -63,15 +63,15 @@ common/setup.sh
 `common/setup.sh` brings `hackios-xnu-userland` into the same tree, checks the host, and fetches the dependencies. Then overlay this snapshot:
 
 ```sh
-SNAP=/path/to/y2sios
+SNAP=/path/to/z3sios
 
 rsync -a "$SNAP/kernel/xnu/" xnu/
 rsync -a "$SNAP/kernel/xnuloader/" xnuloader/
 rsync -a "$SNAP/kernel/common/" common/
 rsync -a "$SNAP/kernel/tools/" tools/
 rsync -a "$SNAP/userland/src/" userland/src/
-cp "$SNAP/kernel/y2s.sh" "$SNAP/kernel/m2m.cmdline" .
-cp "$SNAP/userland/build-gpu-y2s.sh" "$SNAP/userland/build.sh" \
+cp "$SNAP/kernel/z3s.sh" "$SNAP/kernel/m2m.cmdline" .
+cp "$SNAP/userland/build-gpu-z3s.sh" "$SNAP/userland/build.sh" \
    "$SNAP/userland/mkjobs.py" "$SNAP/userland/mkeagl.py" userland/
 cp "$SNAP/userland"/rc.* userland/
 cp "$SNAP/userland"/*.plist userland/
@@ -81,7 +81,7 @@ rsync -a "$SNAP/userland/libmini/" userland/libmini/
 
 The analysis tools (`tools/dsc*.py`) need `pip3 install --user capstone` and the extracted shared cache in `ios165/`.
 
-The `xnu/` directory now contains the y2s overlay: `redwood.patch`, `files/`, `apply.sh` and `export.sh`. If the upstream tree already has a different `xnu/redwood.patch`, our copy replaces it. That is intentional; this snapshot is the complete kernel state.
+The `xnu/` directory now contains the z3s overlay: `redwood.patch`, `files/`, `apply.sh` and `export.sh`. If the upstream tree already has a different `xnu/redwood.patch`, our copy replaces it. That is intentional; this snapshot is the complete kernel state.
 
 ## Kernel
 
@@ -97,22 +97,22 @@ export GIC_V2=1
 Or, in one step:
 
 ```sh
-./y2s.sh kernel
+./z3s.sh kernel
 ```
 
-`y2s.sh kernel` sources the environment, exports `GIC_V2=1`, builds, refuses to continue on a compiler warning or error in the project's own files, checks that the binary contains the string `gic: v2`, copies it to `out/mach.y2s`, and runs `xnu/export.sh`.
+`z3s.sh kernel` sources the environment, exports `GIC_V2=1`, builds, refuses to continue on a compiler warning or error in the project's own files, checks that the binary contains the string `gic: v2`, copies it to `out/mach.z3s`, and runs `xnu/export.sh`.
 
 The build ends with a non-zero exit status. This is expected. XNU's `check_all_exports` step complains about symbolsets and DriverKit RPC names, but the kernel has already linked. Look at the file, not the status.
 
 If the kernel crashes immediately after `pe_arm_init_debug`, the build is a GICv3 kernel. Confirm with:
 
 ```sh
-strings out/mach.y2s | grep 'gic: v'
+strings out/mach.z3s | grep 'gic: v'
 ```
 
 It must print `gic: v2`. If it does not, `GIC_V2` was not exported into the child `xnu-build.sh`. Touching the dependent objects or removing `BUILD/obj/DEVELOPMENT_ARM64_BCM2837` forces a rebuild after a `-D` change, because make does not notice a changed compiler flag on its own.
 
-The kernel must fit in 16 MiB. `y2s.sh kernel` refuses a larger one.
+The kernel must fit in 16 MiB. `z3s.sh kernel` refuses a larger one.
 
 ## Loader
 
@@ -122,30 +122,30 @@ GIC_V2=1 xnuloader/build.sh
 
 The loader is a freestanding AArch64 UEFI application linked at `0xA1000000`. `GIC_V2=1` is required for the same reason as the kernel: a GICv3 loader takes a UEFI exception when it reads `ICC_PMR_EL1` on the way into the kernel.
 
-`./y2s.sh payload` builds the loader and the XNUP container, then splices the container into `out/y2s-embed.img` at `0x100870`. The payload lives inside the UEFI firmware volume's free tail. Do not append it after the image.
+`./z3s.sh payload` builds the loader and the XNUP container, then splices the container into `out/z3s-embed.img` at `0x100870`. The payload lives inside the UEFI firmware volume's free tail. Do not append it after the image.
 
 ## UEFI
 
 ```sh
 git clone --recursive https://github.com/Project-Silicium/Mu-Silicium.git
 cd Mu-Silicium
-git apply /path/to/y2sios/uefi/y2s.patch
+git apply /path/to/z3sios/uefi/z3s.patch
 ```
 
 The patch changes `BootShim/BootShim.S`, `BootManager.c` and `BootManagerLib.inf`. Copy the new files:
 
 ```sh
-cp -a /path/to/y2sios/uefi/Platforms/Samsung/y2sPkg Platforms/Samsung/
-cp /path/to/y2sios/uefi/Resources/Configs/y2s.toml Resources/Configs/
-cp /path/to/y2sios/uefi/Resources/DTBs/y2s.dtb Resources/DTBs/
-cp /path/to/y2sios/uefi/BootManagerLib/XnuLoader.c \
-   /path/to/y2sios/uefi/BootManagerLib/XnuLoader.h \
-   /path/to/y2sios/uefi/BootManagerLib/BootManager.c \
-   /path/to/y2sios/uefi/BootManagerLib/BootManagerLib.inf \
+cp -a /path/to/z3sios/uefi/Platforms/Samsung/z3sPkg Platforms/Samsung/
+cp /path/to/z3sios/uefi/Resources/Configs/z3s.toml Resources/Configs/
+cp /path/to/z3sios/uefi/Resources/DTBs/z3s.dtb Resources/DTBs/
+cp /path/to/z3sios/uefi/BootManagerLib/XnuLoader.c \
+   /path/to/z3sios/uefi/BootManagerLib/XnuLoader.h \
+   /path/to/z3sios/uefi/BootManagerLib/BootManager.c \
+   /path/to/z3sios/uefi/BootManagerLib/BootManagerLib.inf \
    Silicon/Silicium/SiliciumPkg/Library/BootManagerLib/
 ```
 
-`y2s.dsc` and `y2s.fdf` point at `x1s/AcpiTables.inf` from the `Silicium-ACPI` submodule. The tables are inert, but `AcpiTableDxe` must exist or BDS will not dispatch.
+`z3s.dsc` and `z3s.fdf` point at `x1s/AcpiTables.inf` from the `Silicium-ACPI` submodule. The tables are inert, but `AcpiTableDxe` must exist or BDS will not dispatch.
 
 Build inside the Linux VM:
 
@@ -154,16 +154,16 @@ python3 -m venv venv-linux
 venv-linux/bin/pip install -r pip-requirements.txt
 cd Mu-Silicium
 source venv-linux/bin/activate
-python3 build_uefi.py -d y2s
+python3 build_uefi.py -d z3s
 ```
 
 Output:
 
 ```
-Build/y2sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd
+Build/z3sPkg/RELEASE_CLANGPDB/FV/SILICIUM_UEFI.fd
 ```
 
-It should be exactly 2 MiB. `out/y2s-embed.img` is a prebuilt Mu-x1s boot image shell with this firmware volume spliced in at `page + 112`.
+It should be exactly 2 MiB. `out/z3s-embed.img` is a prebuilt Mu-x1s boot image shell with this firmware volume spliced in at `page + 112`.
 
 The Mu-Basetools `mu_nasm` dependency is installed through NuGet and expects Mono. If Mono is not available, place the system `nasm` in the expected directory:
 
@@ -187,13 +187,13 @@ The userland build needs:
 
 - theos with `iPhoneOS16.5.sdk`;
 - `ld64` and the cctools from theos, or the macOS `xnu-clang` shim;
-- Mesa built with the panfrost driver for `build-gpu-y2s.sh`;
+- Mesa built with the panfrost driver for `build-gpu-z3s.sh`;
 - Python 3 and `tools/apfs/mkapfs.py`.
 
 Build the GPU pieces and the images:
 
 ```sh
-QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-y2s.sh
+QUIET=1 RC=rc.launchd.metal RC_JOBS=rc.jobs.manual ./build-gpu-z3s.sh
 ```
 
 `RC=rc.launchd.metal` sets up the Metal plug-in before the window server starts; without it CoreAnimation uses OpenGL ES.
@@ -213,7 +213,7 @@ For a boot that roots from the flash and keeps `/var` on `userdata`, use `m2m.cm
 
 The phone's own firmware is required. It is not redistributable here. Extract it from the stock AP tar for the exact model and region:
 
-1. Download the stock AP tar for SM-G986B.
+1. Download the stock AP tar for SM-G988B.
 2. Parse `super.img.lz4` and the vendor partition. `reference/firmware-notes.md` has the commands and the full file list.
 3. Copy the BCM4375 firmware, CLM and NVRAM files into `fw-wifi/` with the names `build.sh` expects:
    - `bcm4375-sta.bin` (from `bcmdhd_sta.bin_b1`)
@@ -229,18 +229,18 @@ The audio path does not need the DSP firmware on the first attempt, because the 
 ## Pack
 
 ```sh
-./y2s.sh payload "$(cat m2m.cmdline)"
-./y2s.sh pack
+./z3s.sh payload "$(cat m2m.cmdline)"
+./z3s.sh pack
 ```
 
-With iOS already running on Wi-Fi, `./y2s.sh loop LABEL` builds, flashes, boots, runs the standard tour and reports the m2m channel against the previous run.
+With iOS already running on Wi-Fi, `./z3s.sh loop LABEL` builds, flashes, boots, runs the standard tour and reports the m2m channel against the previous run.
 
-`payload` rebuilds the loader and the XNUP container, reads the exact size of `root.apfs`, and splices the container into `out/y2s-embed.img`. If `root.apfs` changes size, run `payload` again before `pack`. The loader reads exactly the size recorded in the payload; a mismatch produces an APFS error and a halt on the Silicium screen.
+`payload` rebuilds the loader and the XNUP container, reads the exact size of `root.apfs`, and splices the container into `out/z3s-embed.img`. If `root.apfs` changes size, run `payload` again before `pack`. The loader reads exactly the size recorded in the payload; a mismatch produces an APFS error and a halt on the Silicium screen.
 
 `pack` writes:
 
 ```
-out/y2s-recovery.img = embed @ 0
+out/z3s-recovery.img = embed @ 0
                      + kernel @ 32 MiB
                      + root.apfs @ 48 MiB
 ```
@@ -252,7 +252,7 @@ The image is checked against the 65.8 MiB size of the `recovery` partition.
 ### From Android
 
 ```sh
-./y2s.sh flash
+./z3s.sh flash
 ```
 
 This runs `adb root`, pushes the image, writes it with `dd`, reads the same region back and compares the md5, then runs `adb reboot recovery`. `adb root` is lost on every reboot, so the script repeats it.
@@ -262,7 +262,7 @@ This runs `adb root`, pushes the image, writes it with `dd`, reads the same regi
 Boot the phone into the menu, choose **Log access (USB)**, and connect it:
 
 ```sh
-./y2s.sh uflash
+./z3s.sh uflash
 ```
 
 The image is written in two pieces around the 16 MiB log region, so the previous run's log survives. The phone reads the data back and verifies it.
@@ -270,7 +270,7 @@ The image is written in two pieces around the 16 MiB log region, so the previous
 ### From Download Mode
 
 ```sh
-./y2s.sh hflash
+./z3s.sh hflash
 ```
 
 This uses the arm64 Heimdall build. It writes `recovery`, and `boot` as well if `out/.standalone` exists.
@@ -278,29 +278,29 @@ This uses the arm64 Heimdall build. It writes `recovery`, and `boot` as well if 
 ### One-time standalone setup
 
 ```sh
-./y2s.sh standalone
+./z3s.sh standalone
 ```
 
 This writes the boot image into `boot`, so power-on goes to the HackiOS menu and Android no longer starts. Android's data is untouched. Undo with:
 
 ```sh
-heimdall flash --BOOT backup-y2s/boot.img
+heimdall flash --BOOT backup-z3s/boot.img
 ```
 
 ## Logs
 
 ```sh
-./y2s.sh log      # from Android, after a return or a panic
-./y2s.sh ulog     # over USB from Log access
-./y2s.sh wlog     # over Wi-Fi while iOS runs
-./y2s.sh wtail    # follow the Wi-Fi log
+./z3s.sh log      # from Android, after a return or a panic
+./z3s.sh ulog     # over USB from Log access
+./z3s.sh wlog     # over Wi-Fi while iOS runs
+./z3s.sh wtail    # follow the Wi-Fi log
 ```
 
-`wlog` uses Bonjour to find `HackiOS._http._tcp`. If Bonjour is slow, set `Y2S_IP=address`.
+`wlog` uses Bonjour to find `HackiOS._http._tcp`. If Bonjour is slow, set `Z3S_IP=address`.
 
 ```sh
-./y2s.sh m2m fetch --label NAME   # the m2m channel into logs/m2m/
-./y2s.sh m2m report RUN           # what a run says, compared with the run before
+./z3s.sh m2m fetch --label NAME   # the m2m channel into logs/m2m/
+./z3s.sh m2m report RUN           # what a run says, compared with the run before
 python3 tools/frame_split.py LOG  # per-frame timing from a touch_lat=1 log
 ```
 
@@ -324,5 +324,5 @@ python3 tools/frame_split.py LOG  # per-frame timing from a touch_lat=1 log
 - Force reset: Volume Down and Power for 10 to 15 seconds.
 - Download Mode: Volume Down and Power for about 6 seconds, then Volume Up.
 - Clear the boot-recovery flag: flash the stock `misc` image. Never zero the whole partition.
-- Restore Android's boot image: flash `backup-y2s/boot.img` to `boot`.
+- Restore Android's boot image: flash `backup-z3s/boot.img` to `boot`.
 - Keep the partition backups and a stock AP tar. They are the difference between a bad afternoon and a dead phone.

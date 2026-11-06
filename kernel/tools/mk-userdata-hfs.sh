@@ -1,5 +1,5 @@
 #!/bin/sh
-# The S20+'s data volume (PLANS/09-standalone.md, P6): a case-sensitive journaled HFS+ (HFSX) the exact size of
+# The S20 Ultra's data volume (PLANS/09-standalone.md, P6): a case-sensitive journaled HFS+ (HFSX) the exact size of
 # its userdata partition (28382208 blocks of 4096 = 116253523968 bytes), made by macOS's own newfs_hfs on a sparse
 # disk image -- nothing but files under /tmp/hfsfmt is touched. Its first 512 MB and its last 2 MB are copied out
 # (head.img, tail.img); tools/hfs-kit.py takes the blocks the file system uses from them, for the phone's init

@@ -1,5 +1,5 @@
 /*
- * The Galaxy S20+'s Mali-G77 (bsd/dev/redwood_mali.c) for the rest of the kernel: what
+ * The Galaxy S20 Ultra's Mali-G77 (bsd/dev/redwood_mali.c) for the rest of the kernel: what
  * iokit/Kernel/RedwoodMali.cpp (Linux's panfrost interface for programs) is built on.
  *
  * One GPU address space (AS 0) for everybody, 4 KB pages, addresses from 32 MB to 4 GB. Jobs

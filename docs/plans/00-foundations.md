@@ -9,7 +9,7 @@ plan fixes the loop first.
 
 **Problem.** `hackios-xnu-kernel-main/xnu-src/xnu-8796.121.2` is the working tree.
 The durable form is `xnu/redwood.patch` + `xnu/files/` (`xnu/export.sh` writes them,
-`xnu/apply.sh` restores them). The y2s work (`redwood_sec_ts.c`, …) was never
+`xnu/apply.sh` restores them). The z3s work (`redwood_sec_ts.c`, …) was never
 exported, so a fresh `apply.sh` would silently lose it.
 
 **Do.** Run `xnu/export.sh` after every kernel change. Check `xnu/files/bsd/dev/redwood_sec_ts.c`
@@ -19,19 +19,19 @@ exists afterwards.
 
 ## F2 — One command to build, pack, flash, and read the log
 
-New script `hackios-xnu-kernel-main/y2s.sh`:
+New script `hackios-xnu-kernel-main/z3s.sh`:
 
 | Sub‑command | Does |
 |---|---|
-| `kernel` | `. common/macos-env.sh; export GIC_V2=1; ./xnu-build.sh -j… -k`, copy to `out/mach.y2s` |
-| `payload "<cmdline>"` | `mkpayload.py` with the y2s partition layout + the cmdline, then splice it into `out/y2s-embed.img` at **`0x100870`** (inside the FD's free tail, no checksum, max `0x80000`) |
-| `pack` | `out/y2s-recovery.img` = embed@0 + kernel@32 MiB + `root.apfs`@48 MiB |
+| `kernel` | `. common/macos-env.sh; export GIC_V2=1; ./xnu-build.sh -j… -k`, copy to `out/mach.z3s` |
+| `payload "<cmdline>"` | `mkpayload.py` with the z3s partition layout + the cmdline, then splice it into `out/z3s-embed.img` at **`0x100870`** (inside the FD's free tail, no checksum, max `0x80000`) |
+| `pack` | `out/z3s-recovery.img` = embed@0 + kernel@32 MiB + `root.apfs`@48 MiB |
 | `flash` | `adb root`, push, `dd` to `recovery`, verify the kernel region md5, `adb reboot recovery` |
 | `log` | `dd` the 2 MiB log at `recovery`+16 MiB, pull it, print it (strip NULs) |
-| `cmdline` | print the cmdline currently in `out/y2s-embed.img` |
+| `cmdline` | print the cmdline currently in `out/z3s-embed.img` |
 
 The cmdline lives in the payload, so a boot‑arg experiment needs **no rebuild**:
-`./y2s.sh payload "touch_ts=1 cpus=4" && ./y2s.sh pack && ./y2s.sh flash`.
+`./z3s.sh payload "touch_ts=1 cpus=4" && ./z3s.sh pack && ./z3s.sh flash`.
 
 ## F3 — A log without a panic
 
@@ -42,7 +42,7 @@ The loader saves the kernel log to `recovery`+16 MiB whenever the kernel **retur
 and now works, because touch works.
 
 **Test:** boot, hold five fingers for 1.5 s, and the loader should print the log and stop.
-Then hard‑reset (Vol‑Down + Power), restore `misc`, boot Android, and run `./y2s.sh log`.
+Then hard‑reset (Vol‑Down + Power), restore `misc`, boot Android, and run `./z3s.sh log`.
 
 - If the loader regains control: this becomes the standard way to end a run.
   B3 adds a power‑button long‑press with the same effect.
@@ -77,13 +77,13 @@ The plans index records the topology. `handoff.md` §3 should be fixed the same 
 ## Iteration protocol (for every experiment)
 
 1. One variable per run (a boot arg or one change).
-2. `./y2s.sh payload "…" && ./y2s.sh pack && ./y2s.sh flash`.
+2. `./z3s.sh payload "…" && ./z3s.sh pack && ./z3s.sh flash`.
 3. Note on the phone: time to lock screen and to home screen, how scrolling and
    app launch feel.
-4. Five‑finger exit → `./y2s.sh log` → paste the `perf:` lines into the plan's results table.
+4. Five‑finger exit → `./z3s.sh log` → paste the `perf:` lines into the plan's results table.
 
 ## F6 — Boot menu in the loader (24 Oct): removed
 
 A volume/power key menu (boot iOS / boot Android with misc restored / power off) was tried and
-removed at the user's request. Note: the loader **must** be built with `GIC_V2=1` (`y2s.sh payload`
+removed at the user's request. Note: the loader **must** be built with `GIC_V2=1` (`z3s.sh payload`
 now does it). Without it, entering the kernel takes a UEFI exception reading `ICC_PMR_EL1`.

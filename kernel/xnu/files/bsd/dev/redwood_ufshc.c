@@ -75,7 +75,7 @@ extern boolean_t ml_set_interrupts_enabled(boolean_t enable);
 
 #define UFSHC_PHYS_QCOM     0x1d84000ULL        /* ufshc@1d84000, "ufs_mem", in the Xiaomi's Android device tree */
 /*
- * The S20+ (Exynos 990): the controller at 0x13100000 (Samsung's ufs-exynos.c, Silicium's
+ * The S20 Ultra (Exynos 990): the controller at 0x13100000 (Samsung's ufs-exynos.c, Silicium's
  * PlatformUfsLib). Its quirks, which UEFI's driver (SamsungPkg UfsDxe) set up and lives by:
  * the request descriptor's response and PRD table offsets and lengths are in bytes, not dwords
  * (UFSHCD_QUIRK_PRDT_BYTE_GRAN), a PRD entry describes at most 4 KB (HCI_[TR]XPRDT_ENTRY_SIZE 12),
@@ -744,7 +744,7 @@ static uint32_t hc_spin_us = 40;                /* boot-arg ufs_native_spin */
 static uint64_t hc_sleeps, hc_poller_polls, hc_poller_rounds;
 
 /*
- * The S20+'s controller (run S3's ufs_native_diag): a command finishes -- the data in, the response and
+ * The S20 Ultra's controller (run S3's ufs_native_diag): a command finishes -- the data in, the response and
  * OCS written -- but its doorbell bit is not taken back; the slot has to be retired by hand. So a slot
  * is done when its doorbell bit is clear or, on Exynos, when its OCS is no longer the "invalid" this
  * kernel wrote; hc_retire() then acknowledges (IS's UTRCS, the slot's UTRLCNR bit) and, if the doorbell
@@ -1103,7 +1103,7 @@ hc_prove(void)
 }
 
 /*
- * ufs_native_diag=1 (the S20+): after the proof, one read-only command at a time in the forms that may
+ * ufs_native_diag=1 (the S20 Ultra): after the proof, one read-only command at a time in the forms that may
  * differ from what UEFI's driver does -- the slot, the command type and interrupt bit, where the response
  * and the PRD table are, the interrupt status cleared or not -- each given 500 ms and its slot cleared if
  * it does not finish. LUN 0, block 1 (the GPT header), into the first slot's buffer.
@@ -1266,7 +1266,7 @@ hc_put_back(struct hc_put_back_result *r)
 	hc_write(UFSHC_UTRLBAU, hc_loader.uefi_hi);
 	hc_write(UFSHC_UTRLRSR, 1);
 	/*
-	 * The S20+: a command that finishes while IS's UTRCS is set keeps its doorbell bit, and UEFI's
+	 * The S20 Ultra: a command that finishes while IS's UTRCS is set keeps its doorbell bit, and UEFI's
 	 * driver waits for the bit to clear before it clears IS -- so UTRCS left set here would make its
 	 * next command never finish (run S3's first save: every UEFI read and write timed out after it).
 	 * Cleared, as it was when this kernel's list went in.
@@ -1743,7 +1743,7 @@ ufshc_probe(const struct ufshc_loader *loader, bool only)
 	    (vm_size_t)round_page((loader->area_pa & PAGE_MASK) + loader->area_size), VM_WIMG_WCOMB) +
 	    (vm_offset_t)(loader->area_pa & PAGE_MASK);
 	/*
-	 * The S20+: reads into the loader's buffer. A read into this kernel's memory (above 4 GB) never
+	 * The S20 Ultra: reads into the loader's buffer. A read into this kernel's memory (above 4 GB) never
 	 * finished -- its doorbell stayed set with no error -- while the list, command descriptors and
 	 * responses in the loader's memory work: the UFS DMA does not reach there, it seems.
 	 */
@@ -1779,7 +1779,7 @@ ufshc_probe(const struct ufshc_loader *loader, bool only)
 			/*
 			 * Exynos: a PRD entry is 4 KB at most, so the buffer need not be contiguous -- and a
 			 * contiguous allocation scans the free pages under the VM's locks: 31 of them stalled
-			 * this kernel's start by minutes on the S20+ (and the GPU's bring-up with it).
+			 * this kernel's start by minutes on the S20 Ultra (and the GPU's bring-up with it).
 			 */
 			if (hc_exynos ? kmem_alloc(kernel_map, &data, round_page(hc_slot_buffer),
 			    KMA_KOBJECT | KMA_ZERO | KMA_DATA, VM_KERN_MEMORY_IOKIT) != KERN_SUCCESS :

@@ -17,7 +17,7 @@ The iOS side is done and does not depend on the chip:
 So the job is a new back end, `redwood_exynos_sound.c`: PCM from `redwood_audio.c` → ABOX →
 UAIF2 → the two amps.
 
-## Hardware (y2s device tree, `files/dts`)
+## Hardware (z3s device tree, `files/dts`)
 
 | | |
 |---|---|
