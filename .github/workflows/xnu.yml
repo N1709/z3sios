@@ -121,13 +121,15 @@ jobs:
             # annotations of a failed check are public.  `bash -x` puts the failing
             # command itself in the last lines.
             {
-              echo "xnu-deps/setup.sh failed; last lines:"
+              echo "xnu-deps/setup.sh failed; errors:"
               if [ -f xnu-deps/exporthdrs.log ]; then
-                echo "--- xnu-deps/exporthdrs.log"
-                tail -6 xnu-deps/exporthdrs.log
+                grep -E 'error:|fatal error|undefined reference|No such file|cannot find|command not found' \
+                  xnu-deps/exporthdrs.log | tail -6
+                echo "--- tail"
+                tail -2 xnu-deps/exporthdrs.log
+              else
+                tail -6 ../setup.log
               fi
-              echo "--- setup.log"
-              tail -2 ../setup.log
             } | while IFS= read -r line; do
               printf '::error::%s\n' "${line//'%'/'%25'}"
             done
