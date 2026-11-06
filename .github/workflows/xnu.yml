@@ -67,7 +67,7 @@ jobs:
           sudo apt-get install -y -qq \
             build-essential clang lld llvm flex bison m4 perl python3 \
             autoconf automake libtool xz-utils libtinfo6 libssl-dev \
-            libxml2-dev zlib1g-dev
+            libxml2-dev zlib1g-dev uuid-dev
           clang --version | head -1
           ld.lld --version | head -1
 
