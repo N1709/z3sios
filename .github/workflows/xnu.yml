@@ -115,17 +115,17 @@ jobs:
         working-directory: kernel
         run: |
           set -o pipefail
-          if ! ./xnu-deps/setup.sh 2>&1 | tee ../setup.log; then
+          if ! bash -x ./xnu-deps/setup.sh 2>&1 | tee ../setup.log; then
             # The setup script keeps its detailed output in xnu-deps/*.log.  Republish
-            # the tails as ::error:: annotations: job logs need a token to download,
-            # annotations of a failed check are public.
+            # the tail as ::error:: annotations: job logs need a token to download,
+            # annotations of a failed check are public.  `bash -x` puts the failing
+            # command itself in the last lines.
             {
-              echo "xnu-deps/setup.sh failed"
-              tail -40 ../setup.log
+              echo "xnu-deps/setup.sh failed; last lines:"
+              tail -8 ../setup.log
               for f in xnu-deps/*.log; do
                 [ -f "$f" ] || continue
-                echo "--- $f"
-                tail -40 "$f"
+                echo "--- $f: $(tail -1 "$f")"
               done
             } | while IFS= read -r line; do
               printf '::error::%s\n' "${line//'%'/'%25'}"
