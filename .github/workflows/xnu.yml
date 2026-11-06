@@ -122,11 +122,12 @@ jobs:
             # command itself in the last lines.
             {
               echo "xnu-deps/setup.sh failed; last lines:"
-              tail -8 ../setup.log
-              for f in xnu-deps/*.log; do
-                [ -f "$f" ] || continue
-                echo "--- $f: $(tail -1 "$f")"
-              done
+              if [ -f xnu-deps/exporthdrs.log ]; then
+                echo "--- xnu-deps/exporthdrs.log"
+                tail -6 xnu-deps/exporthdrs.log
+              fi
+              echo "--- setup.log"
+              tail -2 ../setup.log
             } | while IFS= read -r line; do
               printf '::error::%s\n' "${line//'%'/'%25'}"
             done
