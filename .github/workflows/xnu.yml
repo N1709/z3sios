@@ -73,15 +73,25 @@ jobs:
 
       - name: Theos, its Linux cctools and the iPhoneOS 16.5 SDK
         run: |
+          set -euo pipefail
           export THEOS="$HOME/theos"
-          export CI=1
-          # The official installer clones theos, installs the (non-Swift) Linux toolchain
-          # and a default SDK; 16.5 is installed explicitly afterwards.
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          "$THEOS/bin/install-sdk" 16.5
-          test -x "$THEOS/toolchain/linux/iphone/bin/ld"
-          test -d "$THEOS/sdks/iPhoneOS16.5.sdk"
           echo "THEOS=$THEOS" >> "$GITHUB_ENV"
+          # Install the pieces directly.  bin/install-theos exits 3 on this image before
+          # it reaches the SDK (its Debian dependency list), and we only need theos's
+          # cctools (ld64) and the 16.5 SDK.
+          rm -rf "$THEOS"
+          git clone -q --recursive https://github.com/theos/theos.git "$THEOS"
+          mkdir -p "$THEOS/toolchain" "$THEOS/sdks"
+          # The non-Swift Linux toolchain, laid out as toolchain/linux/iphone/.
+          curl -fsSL "https://github.com/L1ghtmann/llvm-project/releases/latest/download/iOSToolchain-$(uname -m).tar.xz" |
+            tar -xJ -C "$THEOS/toolchain/"
+          test -x "$THEOS/toolchain/linux/iphone/bin/ld"
+          test -x "$THEOS/toolchain/linux/iphone/bin/clang"
+          # The 16.5 SDK is ~220 MB: sparse, and linked like xnu-deps/setup.sh does.
+          git clone -q --depth 1 --filter=blob:none --sparse https://github.com/theos/sdks.git "$THEOS/sdks-git"
+          git -C "$THEOS/sdks-git" sparse-checkout set iPhoneOS16.5.sdk
+          ln -sfn ../sdks-git/iPhoneOS16.5.sdk "$THEOS/sdks/iPhoneOS16.5.sdk"
+          test -d "$THEOS/sdks/iPhoneOS16.5.sdk/usr/include"
           "$THEOS/toolchain/linux/iphone/bin/ld" -v 2>&1 | head -1 || true
 
       - name: Kernel build dependencies (xnu-deps from upstream)
